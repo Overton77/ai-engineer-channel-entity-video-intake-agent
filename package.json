@@ -10,16 +10,25 @@
     "build": "eve build",
     "dev": "eve dev",
     "start": "eve start",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "test": "node --experimental-strip-types --import ./scripts/register-ts.mjs --test tests/**/*.test.mts",
+    "list:eligible": "node scripts/list-eligible-videos.mjs",
+    "run:next": "node scripts/run-pre-research-session.mjs --next",
+    "run:all": "node scripts/run-pre-research-session.mjs --all",
+    "pipeline:next": "node --experimental-strip-types --import ./scripts/register-ts.mjs scripts/run-pre-research-pipeline.mjs --next",
+    "apply:intent": "node --experimental-strip-types --import ./scripts/register-ts.mjs scripts/apply-pre-research-intent.mts",
+    "query:pre-research": "node --experimental-strip-types --import ./scripts/register-ts.mjs scripts/query-pre-research.mts"
   },
   "dependencies": {
     "@vercel/connect": "0.4.3",
     "ai": "^7.0.58",
     "eve": "^0.38.3",
+    "pg": "^8.23.0",
     "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/node": "24.x",
+    "@types/pg": "^8.21.0",
     "typescript": "7.0.2"
   },
   "overrides": {
@@ -28,5 +37,4 @@
   "engines": {
     "node": "24.x"
   }
-
 }
