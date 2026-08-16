@@ -4,6 +4,10 @@ New Eve agent. It is not the existing `research_ingestion_systems_agent`.
 
 This agent reads `public.research_starter_videos` plus stored YouTube transcripts, then categorizes, contextualizes, and writes a transcript-grounded initial summary as a validated ingestion intent. A deterministic executor, with no model access, applies that intent to the `research_*` tables.
 
+It is one slice of a larger composition: research → course, challenge, and knowledge-base creation. This repo is the pre-research intake agent only.
+
+**Uses:** Vercel Eve agent, workflows, sandboxes, and Postgres.
+
 ## Status
 
 The primary path is the v2 two-session pipeline. Eve `0.38.3`, model `zai/glm-5.2`, packet schema `2.0.0`, prompt bundle `pre-research-2.0.0`.
