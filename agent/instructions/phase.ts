@@ -27,7 +27,7 @@ Claim and session binding already happened via the controller. Do not claim anot
 
 ## Order
 
-1. Call \`load_video_context\` and \`load_taxonomy\` for this run's video if the controller message did not already include them.
+1. If you do not already have \`video_id\`, call \`load_pre_research_run\` with this \`run_id\`. Then call \`load_video_context\` and \`load_taxonomy\`. Do not call \`claim_pre_research_video\`. Do not call \`touch_pre_research_run\`. Do not ask the user for \`lease_token\`. Never use \`ask_question\` to recover run metadata.
 2. Write \`00-run-manifest.json\` with \`research_as_of\`, packet schema \`2.0.0\`, transcript pointer/hash, and video publish date. No raw transcript text.
 3. Wave one — five specialists in one \`Workflow\` program, including \`organization_researcher\`:
 
@@ -78,9 +78,9 @@ This is a fresh root session. Research subagents are unavailable. Do not call \`
 ## Order
 
 1. Call \`load_research_phase_packet\` with this \`run_id\`. Use only the hash-verified \`00\`–\`50\` artifacts it returns.
-2. Produce and validate \`60-initial-summary.json\`, then \`70-technology-library-summary.json\`, then \`80-organization-profile.json\`.
-3. Produce \`90-ingestion-intent.json\` from \`10\`–\`80\` using only allowlisted v2 operations.
-4. Call \`save_pre_research_packet\` with \`60\`, \`70\`, \`80\`, and \`90\`. The synthesis checkpoint is incomplete until it returns \`saved: true\`.
+2. Write \`60\`, \`70\`, \`80\`, then \`90\` once each. If \`write_file\` requires a read first, read once and overwrite. Do not run python, jq, checksum, or schema-validation loops in the sandbox. \`save_pre_research_packet\` is the validator.
+3. Put any 64-hex placeholder in \`idempotency_key\`. The save tool overwrites it.
+4. Immediately call \`save_pre_research_packet\` with \`60\`, \`70\`, \`80\`, and \`90\`. Do not paste those JSON bodies back into the conversation. The synthesis checkpoint is incomplete until it returns \`saved: true\`.
 5. Return a structured synthesis-phase receipt: \`run_id\`, \`video_id\`, primary category, organization domain, artifact paths/hashes, and \`intent_ready\` or \`review_required\`. Do not paste the transcript. Do not claim the pipeline is finished.
 
 ## Hard stop

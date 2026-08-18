@@ -1,6 +1,11 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
-import { INTENT_BUCKET } from "../../contracts/enums";
+import {
+  INTENT_BUCKET,
+  PACKET_SCHEMA_VERSION,
+  PROMPT_BUNDLE_VERSION,
+  TAXONOMY_VERSION,
+} from "../../contracts/enums";
 import {
   computeIntentIdempotencyKey,
   ingestionIntentSchema,
@@ -74,20 +79,10 @@ function synthesisReviewReasons(packet: PreResearchPacket): string[] {
 
 export default defineTool({
   description:
-    "Synthesis-only. Validate 60, 70, 80, and 90 against the registered 00-50 checkpoint, upload them to research-ingestion-intents, register artifacts after upload, write the intent ledger only after all 00-90 objects exist, and complete the synthesis phase as intent_ready or review_required. Does not store raw transcript text and does not mark the pipeline finished.",
+    "Synthesis-only. Validate 60, 70, 80, and 90 against the registered 00-50 checkpoint, pin prompt_bundle_version/taxonomy/model/packet schema from the run, overwrite ingestion_intent.idempotency_key with the canonical hash, upload them to research-ingestion-intents, register artifacts after upload, write the intent ledger only after all 00-90 objects exist, and complete the synthesis phase as intent_ready or review_required. Does not store raw transcript text and does not mark the pipeline finished.",
   inputSchema: synthesisPacketSchema,
   async execute(input, ctx) {
     const synthesis = synthesisPacketSchema.parse(input);
-    const expectedKey = computeIntentIdempotencyKey({
-      schema_version: synthesis.ingestion_intent.schema_version,
-      source: synthesis.ingestion_intent.source,
-      evidence_grades_used: synthesis.ingestion_intent.evidence_grades_used,
-      operations: synthesis.ingestion_intent.operations,
-    });
-    if (synthesis.ingestion_intent.idempotency_key !== expectedKey) {
-      throw new Error("IDEMPOTENCY_KEY_MISMATCH: recompute idempotency_key from canonical source+operations");
-    }
-
     const run = await loadPreResearchRun(synthesis.ingestion_intent.source.run_id);
     assertSynthesisPhaseAccess(run, ctx.session.id);
     assertRunMatchesPacket(run, {
@@ -95,6 +90,20 @@ export default defineTool({
       video_id: synthesis.ingestion_intent.source.video_id,
       transcript_sha256: synthesis.ingestion_intent.source.transcript_sha256,
     });
+
+    synthesis.ingestion_intent.source.prompt_bundle_version = PROMPT_BUNDLE_VERSION;
+    synthesis.ingestion_intent.source.taxonomy_version = TAXONOMY_VERSION;
+    synthesis.ingestion_intent.source.model_id = "zai/glm-5.2";
+    synthesis.ingestion_intent.source.packet_schema_version = PACKET_SCHEMA_VERSION;
+
+    const expectedKey = computeIntentIdempotencyKey({
+      schema_version: synthesis.ingestion_intent.schema_version,
+      source: synthesis.ingestion_intent.source,
+      evidence_grades_used: synthesis.ingestion_intent.evidence_grades_used,
+      operations: synthesis.ingestion_intent.operations,
+    });
+    const idempotencyKeyRewritten = synthesis.ingestion_intent.idempotency_key !== expectedKey;
+    synthesis.ingestion_intent.idempotency_key = expectedKey;
 
     const { packet: research } = await loadRegisteredResearchPacket(run.run_id);
     const packet: PreResearchPacket = {
@@ -222,6 +231,8 @@ export default defineTool({
       intent_path: intentPath,
       intent_sha256: intentSha,
       artifacts: uploaded,
+      idempotency_key: expectedKey,
+      idempotency_key_rewritten: idempotencyKeyRewritten,
       phase_transition_error: phaseTransitionError,
       note: "Synthesis packet uploaded and registered. Do not mark the pipeline finished from this tool.",
     };

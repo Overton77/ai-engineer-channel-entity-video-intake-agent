@@ -59,7 +59,11 @@ Other flags: `--run-id`, `--research-only`, `--synthesis-only` (requires `--run-
 
 Related npm scripts: `pipeline:next`, `apply:intent`, `list:eligible`, `test`, `typecheck`.
 
-4. Confirm the run:
+4. Confirm the run with `.agents/skills/query-pre-research` (Cursor verification, not Eve):
+
+```bash
+npm run query:pre-research -- --video-id=<id>
+```
 
 - Two distinct Eve session IDs
 - Artifacts `00`–`99` under `research-ingestion-intents/pre-research/v2/<video_id>/<run_id>/`

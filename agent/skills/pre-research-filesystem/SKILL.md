@@ -35,7 +35,7 @@ Durable bucket prefix: `research-ingestion-intents/pre-research/v2/<video_id>/<r
 
 Research session writes `00`–`50` and calls `save_research_phase_packet`. It must never write `60`, `70`, `80`, or `90`.
 
-Synthesis session loads the durable `00`–`50` checkpoint with `load_research_phase_packet`, writes `60`–`90`, and calls `save_pre_research_packet`. It must never call research subagents.
+Synthesis session loads the durable `00`–`50` checkpoint with `load_research_phase_packet`, writes `60`–`90` once, and immediately calls `save_pre_research_packet`. Do not run python/jq/checksum validation loops. The save tool is the validator. It must never call research subagents.
 
 `99` is executor-only. Neither Eve session may mark the pipeline finished.
 

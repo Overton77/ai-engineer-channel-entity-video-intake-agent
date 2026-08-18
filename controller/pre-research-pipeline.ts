@@ -6,7 +6,8 @@
  * claim / begin_* / complete_* phase functions: a retry resumes from the
  * persisted run phase and session IDs instead of starting a third Eve app.
  */
-import { Client, ClientError, type MessageResult } from "eve/client";
+import { statfsSync } from "node:fs";
+import { Client, ClientError, type InputRequest, type InputResponse, type MessageResult } from "eve/client";
 import {
   PACKET_SCHEMA_VERSION,
   PROMPT_BUNDLE_VERSION,
@@ -23,7 +24,66 @@ import { query } from "../executor/postgres";
 import { downloadJsonObject, downloadStorageObject } from "../executor/storage";
 
 const MODEL_ID = "zai/glm-5.2";
-const DEFAULT_LEASE_SECONDS = 1800;
+const DEFAULT_LEASE_SECONDS = 10800;
+const MIN_FREE_BYTES = 3 * 1024 * 1024 * 1024;
+
+class DiskLowError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DiskLowError";
+  }
+}
+
+function freeDiskBytes(targetPath = process.cwd()): number {
+  const info = statfsSync(targetPath);
+  return Number(info.bavail) * Number(info.bsize);
+}
+
+function assertDiskHeadroom(minBytes = MIN_FREE_BYTES): void {
+  const free = freeDiskBytes();
+  if (free < minBytes) {
+    const freeGb = (free / 1024 ** 3).toFixed(1);
+    const needGb = (minBytes / 1024 ** 3).toFixed(1);
+    throw new DiskLowError(`DISK_LOW: ${freeGb} GiB free; need >= ${needGb} GiB before continuing`);
+  }
+}
+
+async function cancelEveSession(sessionId: string, host?: string): Promise<void> {
+  try {
+    await fetch(`${eveHost(host)}/eve/v1/session/${encodeURIComponent(sessionId)}/cancel`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    });
+  } catch {
+    // best-effort: DISK_LOW / 413 recovery must not hang on cancel
+  }
+}
+
+async function awaitWithDiskWatch<T>(
+  work: () => Promise<T>,
+  options: { intervalMs?: number; sessionId?: string } = {},
+): Promise<T> {
+  const intervalMs = options.intervalMs ?? 15_000;
+  let timer: ReturnType<typeof setInterval> | undefined;
+  try {
+    return await new Promise<T>((resolve, reject) => {
+      timer = setInterval(() => {
+        try {
+          assertDiskHeadroom();
+        } catch (error) {
+          if (options.sessionId) {
+            void cancelEveSession(options.sessionId);
+          }
+          reject(error);
+        }
+      }, intervalMs);
+      work().then(resolve, reject);
+    });
+  } finally {
+    if (timer) clearInterval(timer);
+  }
+}
 
 export type PipelineMode = "full" | "research-only" | "synthesis-only";
 
@@ -87,24 +147,29 @@ export function createPipelineClient(host?: string): Client {
   return new Client({ host: eveHost(host) });
 }
 
-export function buildResearchPhaseMessage(runId: string): string {
+export function buildResearchPhaseMessage(runId: string, videoId: string): string {
   return [
     "You are in the RESEARCH phase of a pre-research v2 run.",
-    `The controller already claimed the video. Use run_id ${runId}.`,
+    `The controller already claimed the video. Use run_id ${runId} and video_id ${videoId}.`,
+    `Call load_pre_research_run({ run_id: "${runId}" }) if you need run metadata.`,
+    `Then call load_video_context({ video_id: "${videoId}" }) and load_taxonomy.`,
     "Do not call claim_pre_research_video.",
+    "Do not call touch_pre_research_run. lease_token is not required.",
+    "Do not ask the user for video_id or lease_token.",
     "Do not write 60, 70, 80, or 90 artifacts.",
     "Do not start synthesis or mark the pipeline finished.",
-    "Load the claimed run, reconfirm qualification, write and save the 00-50 research checkpoint, then stop.",
+    "Write and save the 00-50 research checkpoint, then stop.",
   ].join(" ");
 }
 
-export function buildSynthesisPhaseMessage(runId: string): string {
+export function buildSynthesisPhaseMessage(runId: string, videoId: string): string {
   return [
     "You are in the SYNTHESIS phase of a pre-research v2 run.",
-    `Research is complete. Use run_id ${runId}.`,
+    `Research is complete. Use run_id ${runId} and video_id ${videoId}.`,
     "Do not call claim_pre_research_video.",
     "Do not call research subagents.",
-    "Load the verified 00-50 packet, produce 60, 70, 80, and 90, save the completed packet, then stop.",
+    "Load the verified 00-50 packet, write 60, 70, 80, and 90 once, then immediately call save_pre_research_packet.",
+    "Do not run python, jq, or checksum loops. The save tool validates and overwrites idempotency_key.",
     "Do not mark the pipeline finished.",
   ].join(" ");
 }
@@ -268,30 +333,203 @@ function missingKinds(required: readonly string[], present: readonly string[]): 
   return required.filter((kind) => !have.has(kind));
 }
 
-async function waitForExistingSession(client: Client, sessionId: string): Promise<MessageResult> {
+function questionOptionId(request: InputRequest): string | undefined {
+  return (
+    request.options?.find((option) => option.id === "provide_values")?.id ??
+    request.options?.find((option) => option.id === "provide_credentials")?.id ??
+    request.options?.[0]?.id
+  );
+}
+
+function buildVideoIdAnswer(videoId: string): string {
+  return [
+    `video_id=${videoId}.`,
+    "lease_token is not required.",
+    "Do not call claim_pre_research_video or touch_pre_research_run.",
+    `Call load_pre_research_run if needed, then load_video_context({ video_id: "${videoId}" }) and load_taxonomy.`,
+    "Proceed with the 00-50 research checkpoint. Do not ask again.",
+  ].join(" ");
+}
+
+async function pendingInputRequests(
+  session: ReturnType<Client["sessions"]["attach"]>,
+): Promise<InputRequest[]> {
+  const snap = await session.snapshot();
+  const pending: InputRequest[] = [];
+  const seen = new Set<string>();
+  for (const event of snap.events ?? []) {
+    if (event.type !== "input.requested") continue;
+    const requests = ((event.data as unknown as { requests?: InputRequest[] } | undefined)?.requests ??
+      []) as InputRequest[];
+    for (const request of requests) {
+      if (!request.requestId || seen.has(request.requestId)) continue;
+      seen.add(request.requestId);
+      pending.push(request);
+    }
+  }
+  return pending;
+}
+
+async function autoRespondPending(
+  session: ReturnType<Client["sessions"]["attach"]>,
+  answered: Set<string>,
+  videoId?: string,
+): Promise<boolean> {
+  const pending = await pendingInputRequests(session);
+  const responses: InputResponse[] = [];
+  for (const request of pending) {
+    if (answered.has(request.requestId)) continue;
+    if (request.kind === "session-limit") {
+      responses.push({ requestId: request.requestId, optionId: "continue" });
+      continue;
+    }
+    if (request.kind === "question" && videoId) {
+      const optionId = questionOptionId(request);
+      if (optionId) {
+        responses.push({
+          requestId: request.requestId,
+          optionId,
+          text: buildVideoIdAnswer(videoId),
+        });
+      }
+    }
+  }
+  if (responses.length === 0) return false;
+  for (const response of responses) answered.add(response.requestId);
+  try {
+    await session.respond(responses);
+    return true;
+  } catch {
+    for (const response of responses) answered.delete(response.requestId);
+    return false;
+  }
+}
+
+async function artifactsComplete(runId: string, required: readonly string[]): Promise<boolean> {
+  if (required.length === 0) return false;
+  const present = await registeredKinds(runId, required);
+  return missingKinds(required, present).length === 0;
+}
+
+async function* streamWithFirstEventTimeout<T>(
+  stream: AsyncIterable<T>,
+  timeoutMs: number,
+  sessionId: string,
+): AsyncGenerator<T> {
+  const iterator = stream[Symbol.asyncIterator]();
+  let firstEventTimer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const first = await Promise.race([
+      iterator.next(),
+      new Promise<never>((_, reject) => {
+        firstEventTimer = setTimeout(() => {
+          reject(
+            new Error(
+              `SESSION_UNREACHABLE: no events from ${sessionId} within ${timeoutMs}ms`,
+            ),
+          );
+        }, timeoutMs);
+      }),
+    ]);
+    if (first.done) {
+      return;
+    }
+    yield first.value;
+  } finally {
+    if (firstEventTimer) {
+      clearTimeout(firstEventTimer);
+    }
+  }
+  while (true) {
+    const next = await iterator.next();
+    if (next.done) {
+      return;
+    }
+    yield next.value;
+  }
+}
+
+async function waitForSessionTerminal(
+  client: Client,
+  sessionId: string,
+  videoId?: string,
+  requiredKinds: readonly string[] = [],
+  runId?: string,
+  firstEventTimeoutMs?: number,
+): Promise<MessageResult> {
   const session = client.sessions.attach(sessionId);
+  const answered = new Set<string>();
   let message: string | undefined;
   let status: MessageResult["status"] = "waiting";
-  for await (const event of session.stream({ follow: true, startIndex: 0 })) {
+
+  if (runId && (await artifactsComplete(runId, requiredKinds))) {
+    return {
+      data: undefined,
+      message,
+      events: [],
+      inputRequests: [],
+      sessionId,
+      status: "completed",
+    };
+  }
+
+  await autoRespondPending(session, answered, videoId);
+
+  const rawStream = session.stream({ follow: true, startIndex: 0 });
+  const events = firstEventTimeoutMs
+    ? streamWithFirstEventTimeout(rawStream, firstEventTimeoutMs, sessionId)
+    : rawStream;
+
+  let lastDiskCheck = 0;
+  for await (const event of events) {
+    if (Date.now() - lastDiskCheck > 30_000) {
+      lastDiskCheck = Date.now();
+      try {
+        assertDiskHeadroom();
+      } catch (error) {
+        await cancelEveSession(sessionId);
+        throw error;
+      }
+    }
     if (event.type === "message.completed") {
       const data = event.data as { message?: string } | undefined;
       if (data?.message) {
         message = data.message;
       }
     }
-    if (event.type === "turn.failed" || event.type === "session.failed") {
+    if (event.type === "session.failed") {
+      if (runId && (await artifactsComplete(runId, requiredKinds))) {
+        status = "completed";
+        break;
+      }
       status = "failed";
       break;
     }
-    if (event.type === "session.completed" || event.type === "turn.completed") {
+    if (event.type === "session.completed") {
       status = "completed";
       break;
     }
     if (event.type === "session.waiting") {
-      status = "waiting";
-      break;
+      if (runId && (await artifactsComplete(runId, requiredKinds))) {
+        status = "completed";
+        break;
+      }
+      const handled = await autoRespondPending(session, answered, videoId);
+      if (!handled && !answered.has(`nudge:${sessionId}`)) {
+        answered.add(`nudge:${sessionId}`);
+        try {
+          await session.send(
+            videoId
+              ? `Continue the current phase. video_id=${videoId}. Do not ask for lease_token. Call any remaining specialists, write the required artifacts, and save the packet.`
+              : "Continue the current phase. Do not ask for lease_token. Finish the remaining artifacts and save the packet.",
+          );
+        } catch {
+          answered.delete(`nudge:${sessionId}`);
+        }
+      }
     }
   }
+
   return {
     data: undefined,
     message,
@@ -312,8 +550,22 @@ async function runResearchSession(client: Client, run: RunRow): Promise<{
 }> {
   const existing = await latestSession(run.run_id, "research");
   if (existing && existing.status === "started" && run.research_session_id) {
-    const result = await waitForExistingSession(client, run.research_session_id);
-    return { sessionId: run.research_session_id, result };
+    try {
+      const result = await waitForSessionTerminal(
+        client,
+        run.research_session_id,
+        run.video_id,
+        RESEARCH_ARTIFACT_KINDS,
+        run.run_id,
+        45_000,
+      );
+      return { sessionId: run.research_session_id, result };
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      const code = error instanceof DiskLowError ? "DISK_LOW" : "SESSION_UNREACHABLE";
+      await markSessionFailed(run.run_id, run.research_session_id, code, detail);
+      if (error instanceof DiskLowError) throw error;
+    }
   }
   if (existing && sessionIsTerminal(existing.status) && existing.status !== "failed") {
     return {
@@ -330,16 +582,34 @@ async function runResearchSession(client: Client, run: RunRow): Promise<{
   }
 
   const created = await client.sessions.create({
-    message: buildResearchPhaseMessage(run.run_id),
-    clientContext: { phase: "research", run_id: run.run_id },
+    message: buildResearchPhaseMessage(run.run_id, run.video_id),
+    clientContext: { phase: "research", run_id: run.run_id, video_id: run.video_id },
   });
   const sessionId = created.response.sessionId;
   if (!sessionId) {
     throw new Error("SESSION_BINDING_PENDING: research sessionId was empty");
   }
   await beginResearchSession(run.run_id, sessionId);
-  const result = await created.response.result();
-  return { sessionId, result };
+  try {
+    const first = await awaitWithDiskWatch(() => created.response.result(), { sessionId });
+    if (first.status === "failed" || first.status === "completed") {
+      return { sessionId, result: first };
+    }
+    const result = await waitForSessionTerminal(
+      client,
+      sessionId,
+      run.video_id,
+      RESEARCH_ARTIFACT_KINDS,
+      run.run_id,
+    );
+    return { sessionId, result };
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    const code = error instanceof DiskLowError ? "DISK_LOW" : "RESEARCH_FAILED";
+    await cancelEveSession(sessionId);
+    await markSessionFailed(run.run_id, sessionId, code, detail);
+    throw error;
+  }
 }
 
 async function runSynthesisSession(client: Client, run: RunRow): Promise<{
@@ -348,12 +618,27 @@ async function runSynthesisSession(client: Client, run: RunRow): Promise<{
 }> {
   const existing = await latestSession(run.run_id, "synthesis");
   if (run.status === "synthesizing" && run.synthesis_session_id && existing?.status === "started") {
-    const result = await waitForExistingSession(client, run.synthesis_session_id);
-    if (result.status === "failed") {
-      await markSessionFailed(run.run_id, run.synthesis_session_id, "SYNTHESIS_FAILED", result.message ?? "failed");
+    try {
+      const result = await waitForSessionTerminal(
+        client,
+        run.synthesis_session_id,
+        run.video_id,
+        SYNTHESIS_ARTIFACT_KINDS,
+        run.run_id,
+        45_000,
+      );
+      if (result.status === "failed") {
+        await markSessionFailed(run.run_id, run.synthesis_session_id, "SYNTHESIS_FAILED", result.message ?? "failed");
+        await revertFailedSynthesis(run.run_id);
+      } else {
+        return { sessionId: run.synthesis_session_id, result };
+      }
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      const code = error instanceof DiskLowError ? "DISK_LOW" : "SESSION_UNREACHABLE";
+      await markSessionFailed(run.run_id, run.synthesis_session_id, code, detail);
       await revertFailedSynthesis(run.run_id);
-    } else {
-      return { sessionId: run.synthesis_session_id, result };
+      if (error instanceof DiskLowError) throw error;
     }
   } else if (existing && existing.status === "failed") {
     await revertFailedSynthesis(run.run_id);
@@ -375,18 +660,38 @@ async function runSynthesisSession(client: Client, run: RunRow): Promise<{
   if (current.status !== "research_complete") {
     throw new Error(`ILLEGAL_PHASE_TRANSITION: synthesis requires research_complete, found ${current.status}`);
   }
+  assertDiskHeadroom();
 
   const created = await client.sessions.create({
-    message: buildSynthesisPhaseMessage(current.run_id),
-    clientContext: { phase: "synthesis", run_id: current.run_id },
+    message: buildSynthesisPhaseMessage(current.run_id, current.video_id),
+    clientContext: { phase: "synthesis", run_id: current.run_id, video_id: current.video_id },
   });
   const sessionId = created.response.sessionId;
   if (!sessionId) {
     throw new Error("SESSION_BINDING_PENDING: synthesis sessionId was empty");
   }
   await beginSynthesisSession(current.run_id, sessionId);
-  const result = await created.response.result();
-  return { sessionId, result };
+  try {
+    const first = await awaitWithDiskWatch(() => created.response.result(), { sessionId });
+    if (first.status === "failed" || first.status === "completed") {
+      return { sessionId, result: first };
+    }
+    const result = await waitForSessionTerminal(
+      client,
+      sessionId,
+      current.video_id,
+      SYNTHESIS_ARTIFACT_KINDS,
+      current.run_id,
+    );
+    return { sessionId, result };
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    const code = error instanceof DiskLowError ? "DISK_LOW" : "SYNTHESIS_FAILED";
+    await cancelEveSession(sessionId);
+    await markSessionFailed(current.run_id, sessionId, code, detail);
+    await revertFailedSynthesis(current.run_id);
+    throw error;
+  }
 }
 
 async function materializeRunArtifacts(runId: string): Promise<void> {
@@ -440,6 +745,7 @@ export async function runPreResearchPipeline(
     const detail = error instanceof ClientError ? `${error.status}` : String(error);
     throw new Error(`Eve is not reachable at ${host} (${detail}). Start it with: npm exec -- eve dev --no-ui --port 2000`);
   }
+  assertDiskHeadroom();
 
   let run: RunRow | null = null;
   if (options.runId) {
@@ -525,31 +831,37 @@ export async function runPreResearchPipeline(
   run = await loadRun(run.run_id);
   const synthesisNeeded = run.status === "research_complete" || run.status === "synthesizing";
   if (synthesisNeeded) {
-    const synthesis = await runSynthesisSession(client, run);
-    result.synthesis_session_id = synthesis.sessionId;
-    result.synthesis_status = synthesis.result.status;
-    if (synthesis.result.status === "failed") {
-      await markSessionFailed(run.run_id, synthesis.sessionId, "SYNTHESIS_FAILED", synthesis.result.message ?? "failed");
-      await revertFailedSynthesis(run.run_id);
-      result.phase = "research_complete";
-      result.error = synthesis.result.message ?? "synthesis session failed";
-      return result;
-    }
-    const present = await registeredKinds(run.run_id, SYNTHESIS_ARTIFACT_KINDS);
-    const missing = missingKinds(SYNTHESIS_ARTIFACT_KINDS, present);
-    if (missing.length > 0) {
-      result.phase = "synthesizing";
-      result.error = `SYNTHESIS_PACKET_INCOMPLETE: ${missing.join(",")}`;
-      return result;
-    }
-    run = await loadRun(run.run_id);
-    if (run.status === "synthesizing") {
-      const nextStatus = await inferSynthesisNextStatus(run.run_id);
-      await completeSynthesisPhase(run.run_id, synthesis.sessionId, nextStatus);
+    try {
+      const synthesis = await runSynthesisSession(client, run);
+      result.synthesis_session_id = synthesis.sessionId;
+      result.synthesis_status = synthesis.result.status;
+      if (synthesis.result.status === "failed") {
+        await markSessionFailed(run.run_id, synthesis.sessionId, "SYNTHESIS_FAILED", synthesis.result.message ?? "failed");
+        await revertFailedSynthesis(run.run_id);
+        result.phase = "research_complete";
+        result.error = synthesis.result.message ?? "synthesis session failed";
+        return result;
+      }
+      const present = await registeredKinds(run.run_id, SYNTHESIS_ARTIFACT_KINDS);
+      const missing = missingKinds(SYNTHESIS_ARTIFACT_KINDS, present);
+      if (missing.length > 0) {
+        result.phase = "synthesizing";
+        result.error = `SYNTHESIS_PACKET_INCOMPLETE: ${missing.join(",")}`;
+        return result;
+      }
       run = await loadRun(run.run_id);
+      if (run.status === "synthesizing") {
+        const nextStatus = await inferSynthesisNextStatus(run.run_id);
+        await completeSynthesisPhase(run.run_id, synthesis.sessionId, nextStatus);
+        run = await loadRun(run.run_id);
+      }
+      await materializeRunArtifacts(run.run_id);
+      Object.assign(result, await summarizeRun(run.run_id));
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      Object.assign(result, await summarizeRun(run.run_id), { error: detail });
+      return result;
     }
-    await materializeRunArtifacts(run.run_id);
-    Object.assign(result, await summarizeRun(run.run_id));
   }
 
   if (mode === "synthesis-only") {

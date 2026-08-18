@@ -1,5 +1,7 @@
 # Handoff: run the pre-research v2 pipeline
 
+**Current session (2026-08-16):** stopped mid-synthesis on `gEDl9C8s_-4` because C: filled up. Read [HANDOFF-2026-08-16.md](./HANDOFF-2026-08-16.md) first. Eve sandbox containers are disposable; the checkpoint is in Postgres.
+
 You are taking over a running Eve project. Do not scaffold a new agent. Your job is to start Eve and run one qualified video through the v2 two-session pipeline.
 
 Project: `research_starter_pre_research_agent/`

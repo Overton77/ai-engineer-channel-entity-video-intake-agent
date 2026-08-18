@@ -64,4 +64,4 @@ Research sessions must not produce this file. Synthesis produces `60`, `70`, and
 
 ## After validation
 
-Call `save_pre_research_packet`. Do not call `save_pre_research_intent`. Do not mark the pipeline finished.
+Call `save_pre_research_packet`. The tool overwrites `idempotency_key` with the canonical hash. Do not re-read or re-embed the packet to recompute it. Do not call `save_pre_research_intent`. Do not mark the pipeline finished.
