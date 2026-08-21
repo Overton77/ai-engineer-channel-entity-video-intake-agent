@@ -1,5 +1,5 @@
 import { loadEnv } from "./load-env.mjs";
-import { listEligibleVideos } from "./eligible-videos.mjs";
+import { listEligibleVideos, listRecoverableRuns } from "./eligible-videos.mjs";
 
 loadEnv();
 
@@ -12,11 +12,13 @@ function arg(name, fallback = undefined) {
 const limit = Number(arg("--limit", "50"));
 const includeApplied = process.argv.includes("--include-applied");
 const videoId = arg("--video-id") ?? null;
+const summaryOnly = process.argv.includes("--summary");
 const rows = await listEligibleVideos({
   limit: Number.isFinite(limit) ? limit : 50,
   includeApplied,
   videoId,
 });
+const recoverable = await listRecoverableRuns();
 const first = rows.find((row) => !row.has_live_or_applied_run) ?? rows[0] ?? null;
 
 console.log(
@@ -34,7 +36,9 @@ console.log(
             pipeline_status: first.pipeline_status,
           }
         : null,
-      videos: rows,
+      recoverable_count: recoverable.length,
+      recoverable_runs: recoverable,
+      ...(summaryOnly ? {} : { videos: rows }),
     },
     null,
     2,

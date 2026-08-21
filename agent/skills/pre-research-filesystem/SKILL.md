@@ -2,9 +2,9 @@
 description: Use when starting a pre-research run or writing scratch-pad files. Defines the /workspace layout and v2 packet files for this filesystem agent.
 ---
 
-# Pre-research filesystem protocol
+# Pre-research artifact protocol
 
-This agent is a filesystem agent. Think on disk. Do not keep long notes only in chat.
+The phase save tools materialize validated objects to host outputs and Supabase Storage. Sandbox/file tools are disabled in the default pipeline to avoid provisioning per-session compute.
 
 ## Root for one video
 
@@ -12,7 +12,7 @@ This agent is a filesystem agent. Think on disk. Do not keep long notes only in 
 /workspace/pre-research/<video_id>/<run_id>/
 ```
 
-Create that directory before specialist fan-out.
+Treat this as the logical packet directory. Do not create it with sandbox tools; the save tool creates the host output path and uploads the packet objects.
 
 ## v2 packet files
 
@@ -21,40 +21,28 @@ Durable bucket prefix: `research-ingestion-intents/pre-research/v2/<video_id>/<r
 | File | Writer | Phase | Consumer |
 | --- | --- | --- | --- |
 | `00-run-manifest.json` | research root | research | all later steps |
-| `10-transcript-analysis.json` | transcript_analyst | research | synthesis |
-| `20-taxonomy-classification.json` | taxonomy_classifier | research | synthesis |
-| `30-web-context.json` | web_context_scout | research | source_verifier, synthesis |
-| `35-organization-research.json` | organization_researcher | research | source_verifier, synthesis |
-| `40-source-verification.json` | source_verifier | research | synthesis |
-| `50-curriculum-signals.json` | curriculum_mapper | research | synthesis |
+| `10-transcript-analysis.json` | iterative transcript tool + research root | research | synthesis |
+| `20-taxonomy-classification.json` | research root | research | synthesis |
+| `30-web-context.json` | research root | research | verification, synthesis |
+| `35-organization-research.json` | research root | research | verification, synthesis |
+| `40-source-verification.json` | research root | research | synthesis |
+| `50-curriculum-signals.json` | research root | research | synthesis |
 | `initial-summary/60-initial-summary.json` | synthesis root | synthesis | intent / executor |
 | `technology-library-summary/70-technology-library-summary.json` | synthesis root | synthesis | intent / executor |
 | `organization-profile/80-organization-profile.json` | synthesis root | synthesis | intent / executor |
 | `90-ingestion-intent.json` | synthesis root | synthesis | deterministic executor |
 | `99-execution-receipt.json` | executor only | after apply | humans / dispatcher |
 
-Research session writes `00`–`50` and calls `save_research_phase_packet`. It must never write `60`, `70`, `80`, or `90`.
+Research prepares `00`–`50` in bounded stages and calls `save_research_stage_packet` for only the current stage. It must never create `60`, `70`, `80`, or `90`.
 
-Synthesis session loads the durable `00`–`50` checkpoint with `load_research_phase_packet`, writes `60`–`90` once, and immediately calls `save_pre_research_packet`. Do not run python/jq/checksum validation loops. The save tool is the validator. It must never call research subagents.
+Synthesis loads the minimum durable checkpoint for the current bounded stage with `load_research_phase_packet`, prepares exactly one of `60`, `70`, `80`, or `90`, and calls `save_synthesis_stage_packet`. The controller clears model history between registered stages. Do not use sandbox/file tools, skill loading, or validation loops.
 
 `99` is executor-only. Neither Eve session may mark the pipeline finished.
 
-## Scratch files allowed
-
-```
-notes/transcript.md
-notes/taxonomy.md
-notes/search-ledger.md
-notes/organization.md
-notes/verification.md
-notes/curriculum.md
-schema/postgres-schema.md
-```
-
 ## Rules
 
-- Specialists have isolated sandboxes. They cannot see the root workspace unless the parent puts the needed JSON in their `message`.
-- Still write files inside the child sandbox. Return the JSON in the specialist result so the root can copy it into the packet directory.
+- The default pipeline has no subagent fan-out. Produce research artifacts sequentially in the research root context.
+- `load_video_context` returns metadata plus a bounded iterative transcript analysis, never the raw transcript. Pass its `transcript_analysis` as `10-transcript-analysis.json` unchanged.
 - Never write raw transcript text into packet or intent files.
 - Never write SQL files.
-- Hosted `/workspace` is ephemeral. Phase save tools upload to `research-ingestion-intents`.
+- Phase save tools upload to `research-ingestion-intents` and write host-side `outputs/pre-research/` copies.

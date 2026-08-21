@@ -83,6 +83,7 @@ export async function persistArtifact(options: {
   sandbox?: ArtifactSandbox | null;
 }): Promise<{
   localPath: string;
+  localSaved: boolean;
   sandboxPath: string;
   sandboxSaved: boolean;
   sandboxError: string | null;
@@ -100,10 +101,13 @@ export async function persistArtifact(options: {
   }
 
   const outputPath = resolve(process.cwd(), "outputs", "pre-research", options.relativePath);
-  const temporaryPath = `${outputPath}.${process.pid}.${Date.now()}.tmp`;
-  await mkdir(dirname(outputPath), { recursive: true });
-  await writeFile(temporaryPath, serialized.content, "utf8");
-  await rename(temporaryPath, outputPath);
+  const localSaved = process.env.VERCEL !== "1";
+  if (localSaved) {
+    const temporaryPath = `${outputPath}.${process.pid}.${Date.now()}.tmp`;
+    await mkdir(dirname(outputPath), { recursive: true });
+    await writeFile(temporaryPath, serialized.content, "utf8");
+    await rename(temporaryPath, outputPath);
+  }
 
   const sandboxPath = `/workspace/pre-research/${options.relativePath}`;
   let sandboxSaved = false;
@@ -119,6 +123,7 @@ export async function persistArtifact(options: {
 
   return {
     localPath: outputPath,
+    localSaved,
     sandboxPath,
     sandboxSaved,
     sandboxError,

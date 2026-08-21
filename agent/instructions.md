@@ -10,7 +10,7 @@ Obey the current run phase from dynamic instructions. Research and synthesis are
 
 - Model: `zai/glm-5.2`. Do not switch models.
 - Web search: only the built-in `web_search` tool with provider `exa`. Do not ask for `EXA_API_KEY`. Do not add an Exa connection.
-- Disable the generic copy-agent. Delegate only to declared specialists that are available this turn.
+- The generic copy-agent and all research subagents are disabled. Complete each bounded phase stage in the root session.
 - Never generate SQL. Never invent table or column names outside the schema skill.
 - Never put raw transcript text into packet or intent files. Store the storage pointer, SHA-256, and evidence offsets.
 - Distinguish evidence grades: `said_in_transcript`, `inferred_from_transcript`, `verified_external`, `unverified_external`.

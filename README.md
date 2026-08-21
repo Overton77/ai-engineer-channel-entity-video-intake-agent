@@ -6,17 +6,17 @@ This agent reads `public.research_starter_videos` plus stored YouTube transcript
 
 It is one slice of a larger composition: research → course, challenge, and knowledge-base creation. This repo is the pre-research intake agent only.
 
-**Uses:** Vercel Eve agent, workflows, sandboxes, and Postgres.
+**Uses:** Vercel Eve, AI Gateway, and Supabase Postgres/Storage. The default pipeline disables subagents and sandbox/file tools; authored save tools materialize artifacts directly.
 
 ## Status
 
 The primary path is the v2 two-session pipeline. Eve `0.38.3`, model `zai/glm-5.2`, packet schema `2.0.0`, prompt bundle `pre-research-2.0.0`.
 
-The controller in `controller/pre-research-pipeline.ts` claims a qualified video, starts a research Eve session (`00`–`50`), then starts a separate synthesis Eve session (`60`–`90`). The controller owns the cutover. Eve sessions must not mark the pipeline finished.
+The controller in `controller/pre-research-pipeline.ts` claims a qualified video, runs registered research stages (`00`–`50`), then registered synthesis stages (`60`, `70`, `80`, `90`). It clears model history between durable checkpoints and has no subagent fan-out. Every transcript is split into bounded sections and reduced iteratively, passing the prior cumulative summary into the next GLM 5.2 call without putting raw transcript text into Eve history. The controller owns the cutover. Eve sessions must not mark the pipeline finished.
 
 Durable artifacts go to `research-ingestion-intents/pre-research/v2/<video_id>/<run_id>/`. The executor applies the intent after synthesis. `pre_research_pipeline_finished` is true only after apply plus a hash-verified packet.
 
-Do not enable the production schedule. Do not run concurrency 3. Do not backfill v1.
+The retired prompt-only cron was removed; backlog processing is owned by the serial controller. Do not run concurrency 3 or backfill v1.
 
 v2 contract and slices: [implementation/](./implementation/) and [implementation/goal/PRE_RESEARCH_V2_IMPLEMENTATION_PLAN.md](./implementation/goal/PRE_RESEARCH_V2_IMPLEMENTATION_PLAN.md). The original v1 spec remains in [IMPLEMENTATION.md](./IMPLEMENTATION.md).
 
@@ -28,19 +28,26 @@ Handoff for another agent: [HANDOFF.md](./HANDOFF.md). Runner skill: `.cursor/sk
 cp .env.example .env
 # fill AI_GATEWAY_API_KEY, POSTGRES_URL or POSTGRES_URL_NON_POOLING,
 # SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
-npm exec -- eve dev --no-ui --port 2000
+npm run build
+$env:PRE_RESEARCH_LOCAL_EVE_START='true'; $env:PORT='2000'; npm run start -- --host 127.0.0.1
 npm run list:eligible
 npm run pipeline:next
+# after one successful smoke run, process all remaining qualified videos serially:
+npm run pipeline:all
+# or cap a batch:
+npm run pipeline:all -- --max-videos 2
 # or a specific qualified video:
 node --experimental-strip-types --import ./scripts/register-ts.mjs scripts/run-pre-research-pipeline.mjs --video-id <id>
 ```
 
+Use the built `eve start` server for pipeline and batch work. On Windows, long `eve dev` turns can be redelivered by the local workflow transport and rapidly grow `.eve/.workflow-data`. After stopping Eve, `npm run maintenance:prune-eve-runtime` removes only generated local Eve workflow state; it does not touch outputs, Supabase data, or Docker images.
+
 Do not set `EXA_API_KEY`. `web_search` uses Exa through AI Gateway.
 
-`--video-id` cannot bypass qualification. Claim is 6-arg. `TRjq7t2Ms5I` has a live v1 run (`intent_ready`, `0af07c2e-bb23-46e1-9661-0a32c67a3715`) and cannot be reclaimed until that run is superseded or applied. Next oldest eligible smoke video: `-rsTkYgnNzM`.
+`--video-id` cannot bypass qualification. Claim is 6-arg. Use `npm run list:eligible` for the current oldest candidate. Set `PRE_RESEARCH_TRANSCRIPT_CHUNK_CHARACTERS` only to override the default 12,000-character iterative-summary section size (minimum 2,000). `PRE_RESEARCH_MIN_FREE_GB` controls the local disk guard (default 1.5 GiB).
 
 The v1 runner `scripts/run-pre-research-session.mjs` still exists. It is not the primary path.
 
 ## Source catalog
 
-Qualification refresh on 2026-08-16: 43 eligible / 1049 evaluated. Most catalog rows still lack a stored transcript. `--video-id` cannot bypass those predicates.
+Qualification is evaluated live against transcript status/text, the Supabase object, `0 < duration_seconds < 5400`, and the current transcript SHA. `--video-id` cannot bypass those predicates.

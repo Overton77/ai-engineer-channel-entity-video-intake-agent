@@ -73,6 +73,18 @@ export async function uploadStorageObject(input: {
   return { sha256: sha256Hex(body), byteCount: body.byteLength };
 }
 
+export async function deleteStorageObject(bucket: string, path: string): Promise<void> {
+  const response = await fetch(objectUrl(bucket, pathForUpload(path)), {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error(
+      `Storage delete failed for ${bucket}/${path}: ${response.status} ${await response.text()}`,
+    );
+  }
+}
+
 function pathForUpload(path: string): string {
   return path.replace(/^\/+/, "");
 }

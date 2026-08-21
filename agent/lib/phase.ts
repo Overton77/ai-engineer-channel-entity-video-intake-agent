@@ -1,13 +1,27 @@
 import type { DynamicResolveContext } from "eve/instructions";
 import type { ModelMessage } from "ai";
 import { asIsoDate, loadPreResearchRun, type PreResearchRun } from "./run-access";
+import { researchStageFromMessages, synthesisStageFromMessages } from "./turn-capabilities";
 
 export type RunPhase = "research" | "synthesis";
+export type ResearchStage =
+  | "transcript_taxonomy"
+  | "web_context"
+  | "organization_research"
+  | "source_verification"
+  | "curriculum";
+export type SynthesisStage =
+  | "initial_summary"
+  | "technology_library_summary"
+  | "organization_profile"
+  | "ingestion_intent";
 
 export type ResolvedRunPhase = {
   phase: RunPhase;
   run: PreResearchRun;
   research_as_of: string;
+  research_stage: ResearchStage | null;
+  synthesis_stage: SynthesisStage | null;
 };
 
 const UUID_RE =
@@ -61,6 +75,25 @@ function asPhase(value: unknown): RunPhase | null {
   return value === "research" || value === "synthesis" ? value : null;
 }
 
+function asResearchStage(value: unknown): ResearchStage | null {
+  return value === "transcript_taxonomy" ||
+    value === "web_context" ||
+    value === "organization_research" ||
+    value === "source_verification" ||
+    value === "curriculum"
+    ? value
+    : null;
+}
+
+function asSynthesisStage(value: unknown): SynthesisStage | null {
+  return value === "initial_summary" ||
+    value === "technology_library_summary" ||
+    value === "organization_profile" ||
+    value === "ingestion_intent"
+    ? value
+    : null;
+}
+
 function asRunId(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const match = value.match(UUID_RE);
@@ -83,14 +116,20 @@ function collectHintObjects(
 function hintsFromContext(ctx: DynamicResolveContext): {
   phase: RunPhase | null;
   runId: string | null;
+  researchStage: ResearchStage | null;
+  synthesisStage: SynthesisStage | null;
 } {
   const texts = messageTexts(ctx.messages);
   let phase: RunPhase | null = null;
   let runId: string | null = null;
+  let researchStage: ResearchStage | null = null;
+  let synthesisStage: SynthesisStage | null = null;
 
   for (const object of collectHintObjects(ctx, texts)) {
     phase ??= asPhase(object.phase);
     runId ??= asRunId(object.run_id);
+    researchStage ??= asResearchStage(object.research_stage);
+    synthesisStage ??= asSynthesisStage(object.synthesis_stage);
   }
 
   if (!runId) {
@@ -113,7 +152,10 @@ function hintsFromContext(ctx: DynamicResolveContext): {
     }
   }
 
-  return { phase, runId };
+  researchStage ??= researchStageFromMessages(ctx.messages);
+  synthesisStage ??= synthesisStageFromMessages(ctx.messages);
+
+  return { phase, runId, researchStage, synthesisStage };
 }
 
 export function phaseFromRunStatus(status: string): RunPhase | null {
@@ -138,6 +180,8 @@ export async function resolveRunPhase(
       phase,
       run,
       research_as_of: asIsoDate(run.research_as_of) ?? utcDateToday(),
+      research_stage: hints.researchStage,
+      synthesis_stage: hints.synthesisStage,
     };
   } catch {
     return null;

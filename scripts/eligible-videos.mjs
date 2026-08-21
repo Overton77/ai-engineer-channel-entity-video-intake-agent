@@ -10,6 +10,7 @@ const LIVE_OR_APPLIED_STATUSES = [
   "applying",
   "applied",
 ];
+const CURRENT_PACKET_SCHEMA_VERSION = "2.0.0";
 
 const CANONICAL_ELIGIBILITY_PREDICATES = `
   v.transcript_status = 'stored'
@@ -151,6 +152,53 @@ export async function listEligibleVideos({
       videoId,
       LIVE_OR_APPLIED_STATUSES,
     ]);
+    return rows;
+  } finally {
+    await pool.end();
+  }
+}
+
+export async function listRecoverableRuns({ limit = 1000 } = {}) {
+  const raw = process.env.POSTGRES_URL_NON_POOLING ?? process.env.POSTGRES_URL;
+  if (!raw) {
+    throw new Error("POSTGRES_URL or POSTGRES_URL_NON_POOLING is required");
+  }
+
+  const url = new URL(raw);
+  url.searchParams.delete("sslmode");
+  url.searchParams.delete("supa");
+
+  const pool = new pg.Pool({
+    connectionString: url.toString(),
+    ssl: { rejectUnauthorized: false },
+  });
+
+  try {
+    const { rows } = await pool.query(
+      `select
+         r.run_id,
+         r.video_id,
+         r.status::text as status,
+         r.created_at,
+         r.updated_at,
+         count(a.artifact_id)::int as artifact_count
+       from public.research_pre_research_run r
+       join public.research_starter_videos v on v.video_id = r.video_id
+       left join public.research_pre_research_artifact a on a.run_id = r.run_id
+       where r.status::text = any($2::text[])
+         and r.packet_schema_version = $3
+         and r.transcript_sha256 = ${CURRENT_TRANSCRIPT_HASH}
+         and ${CANONICAL_ELIGIBILITY_PREDICATES}
+         and not ${finishedPredicate()}
+       group by r.run_id, r.video_id, r.status, r.created_at, r.updated_at
+       order by r.created_at asc, r.run_id
+       limit $1`,
+      [
+        limit,
+        LIVE_OR_APPLIED_STATUSES.filter((status) => status !== "applied"),
+        CURRENT_PACKET_SCHEMA_VERSION,
+      ],
+    );
     return rows;
   } finally {
     await pool.end();

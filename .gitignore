@@ -2,6 +2,8 @@ node_modules
 .env*
 !.env.example
 .eve
+.eve-dev.*.log
+.eve-start.*.log
 .vercel
 .next
 .output
@@ -10,3 +12,6 @@ dist
 outputs
 .DS_Store
 *.tsbuildinfo
+
+.vercel
+.env*

@@ -1,8 +1,9 @@
-import { defineTool } from "eve/tools";
+import { defineDynamic, defineTool } from "eve/tools";
 import { z } from "zod";
 import { query } from "../lib/postgres";
 import { TAXONOMY_VERSION } from "../../contracts/enums";
 import type { TaxonomyBundle } from "../../contracts/taxonomy";
+import { researchStageFromMessages } from "../lib/turn-capabilities";
 
 type VersionRow = {
   taxonomy_version_id: string;
@@ -29,7 +30,7 @@ type DomainRow = {
   active: boolean;
 };
 
-export default defineTool({
+const loadTaxonomy = defineTool({
   description:
     "Load the official AI engineering taxonomy: active version, category definitions with inclusion/exclusion criteria, and application domains. Call this before taxonomy_classifier.",
   inputSchema: z.object({
@@ -71,5 +72,12 @@ export default defineTool({
         domains,
       } satisfies TaxonomyBundle,
     };
+  },
+});
+
+export default defineDynamic({
+  events: {
+    "step.started": (_event, ctx) =>
+      researchStageFromMessages(ctx.messages) === "transcript_taxonomy" ? loadTaxonomy : null,
   },
 });

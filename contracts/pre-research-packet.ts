@@ -346,11 +346,7 @@ export const technologyLibrarySummarySchema = packetIdentitySchema
   })
   .and(technologyLibrarySummaryContentSchema);
 
-export const organizationProfileSchema = packetIdentitySchema
-  .extend({
-    schema_version: z.literal(PACKET_SCHEMA_VERSION),
-    video_published_at: z.iso.datetime().nullable(),
-    generated_at: z.iso.datetime(),
+export const organizationProfileContentSchema = z.object({
     primary_featured_organization: organizationCandidatePayloadSchema.nullable(),
     parent_organization: parentOrganizationSchema.nullable(),
     speaker_employer: speakerEmployerSchema.nullable(),
@@ -364,7 +360,15 @@ export const organizationProfileSchema = packetIdentitySchema
     review_reasons: z.array(z.string().min(1)),
     searches_attempted: z.array(z.string().min(1)),
     no_organization_reason: z.string().min(1).nullable(),
+  });
+
+export const organizationProfileSchema = packetIdentitySchema
+  .extend({
+    schema_version: z.literal(PACKET_SCHEMA_VERSION),
+    video_published_at: z.iso.datetime().nullable(),
+    generated_at: z.iso.datetime(),
   })
+  .and(organizationProfileContentSchema)
   .superRefine((profile, ctx) => {
     if (profile.primary_featured_organization === null) {
       if (profile.primary_domain_code !== "other_unknown") {
@@ -553,8 +557,14 @@ function checkIdentity(
   }
 }
 
-export function validateResearchPhasePacketCrossFile(
-  packet: ResearchPhasePacket,
+export type PartialResearchPhasePacket = Pick<
+  ResearchPhasePacket,
+  "run_manifest" | "transcript_analysis"
+> &
+  Partial<Omit<ResearchPhasePacket, "run_manifest" | "transcript_analysis">>;
+
+export function validatePartialResearchPhasePacketCrossFile(
+  packet: PartialResearchPhasePacket,
 ): PacketCrossFileResult {
   const errors: string[] = [];
   const expected = {
@@ -565,7 +575,7 @@ export function validateResearchPhasePacketCrossFile(
     video_published_at: packet.run_manifest.video_published_at,
   };
 
-  const artifacts: Array<[string, IdentityFields]> = [
+  const artifacts: Array<[string, IdentityFields | undefined]> = [
     ["transcript_analysis", packet.transcript_analysis],
     ["taxonomy_classification", packet.taxonomy_classification],
     ["web_context", packet.web_context],
@@ -574,6 +584,7 @@ export function validateResearchPhasePacketCrossFile(
     ["curriculum_signals", packet.curriculum_signals],
   ];
   for (const [label, artifact] of artifacts) {
+    if (!artifact) continue;
     checkIdentity(errors, label, artifact, expected);
   }
 
@@ -582,7 +593,9 @@ export function validateResearchPhasePacketCrossFile(
     knownEvidenceIds.add(anchor.evidence_id);
   }
   const referenced = new Set<string>();
-  collectEvidenceIds(packet.organization_research, referenced);
+  if (packet.organization_research) {
+    collectEvidenceIds(packet.organization_research, referenced);
+  }
   for (const evidenceId of referenced) {
     if (!knownEvidenceIds.has(evidenceId)) {
       errors.push(`Referenced evidence_id ${evidenceId} is not present in transcript anchors`);
@@ -590,6 +603,12 @@ export function validateResearchPhasePacketCrossFile(
   }
 
   return { ok: errors.length === 0, errors };
+}
+
+export function validateResearchPhasePacketCrossFile(
+  packet: ResearchPhasePacket,
+): PacketCrossFileResult {
+  return validatePartialResearchPhasePacketCrossFile(packet);
 }
 
 export function validatePreResearchPacketCrossFile(packet: PreResearchPacket): PacketCrossFileResult {

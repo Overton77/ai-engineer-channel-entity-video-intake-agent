@@ -4,8 +4,9 @@ loadEnv();
 
 function arg(name, fallback = undefined) {
   const idx = process.argv.indexOf(name);
-  if (idx === -1) return fallback;
-  return process.argv[idx + 1] ?? fallback;
+  if (idx !== -1) return process.argv[idx + 1] ?? fallback;
+  const inline = process.argv.find((value) => value.startsWith(`${name}=`));
+  return inline ? inline.slice(name.length + 1) || fallback : fallback;
 }
 
 const videoId = arg("--video-id");
@@ -15,6 +16,10 @@ const synthesisOnly = process.argv.includes("--synthesis-only");
 const runNext = process.argv.includes("--next") || (!videoId && !runId && !synthesisOnly);
 const approved = process.argv.includes("--approved");
 const eveUrl = arg("--eve-url");
+
+// Keep the controller's transport and local-disk policy on the same resolved
+// host even when the caller used the CLI flag instead of EVE_URL.
+if (eveUrl) process.env.EVE_URL = eveUrl;
 
 if (researchOnly && synthesisOnly) {
   console.error("Use only one of --research-only or --synthesis-only");

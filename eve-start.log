@@ -1,0 +1,8 @@
+
+> research_starter_pre_research_agent@0.0.0 start
+> eve start --host 127.0.0.1
+
+eve: initializing 3 sandbox templates...
+eve: initialized 3 sandbox templates (3 reused, 0 built).
+➜ Listening on: http://127.0.0.1:2000/
+[START] server listening at http://127.0.0.1:2000/

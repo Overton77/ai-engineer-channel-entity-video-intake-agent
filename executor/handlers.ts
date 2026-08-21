@@ -8,6 +8,7 @@ import type {
 import { clientQuery } from "./postgres";
 import { tableForOperationKind } from "./operations";
 import { normalizeOfficialUrl, normalizeUrl } from "./url-normalization";
+import { normalizeApplicationDomainAssignments } from "../lib/application-domain";
 
 export type HandlerContext = {
   client: PoolClient;
@@ -271,13 +272,18 @@ async function replaceDomainAssignments(
   await clientQuery(ctx.client, `delete from public.research_video_domain where analysis_id = $1`, [
     analysisId,
   ]);
-  for (const row of payload) {
+  for (const row of normalizeApplicationDomainAssignments(payload)) {
     await clientQuery(
       ctx.client,
       `insert into public.research_video_domain (
          analysis_id, domain_code, confidence, rationale
        ) values ($1, $2, $3, $4)`,
-      [analysisId, row.domain_code, row.confidence, row.rationale],
+      [
+        analysisId,
+        row.domain_code,
+        row.confidence,
+        row.rationale,
+      ],
     );
   }
   return { affectedTable: "research_video_domain", affectedKey: analysisId };

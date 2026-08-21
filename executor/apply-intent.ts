@@ -614,13 +614,10 @@ async function applyInTransaction(input: {
         );
       } catch (error) {
         const detail = error instanceof Error ? error.message : String(error);
-        await clientQuery(
-          client,
-          `insert into public.research_ingestion_intent_event (
-             intent_id, operation_index, operation_kind, status, error_detail
-           ) values ($1, $2, $3, 'failed', $4)`,
-          [input.ledger.intent_id, index, operation.kind, detail],
-        );
+        // A PostgreSQL statement error aborts the transaction immediately;
+        // attempting to record a failure event in that same transaction masks
+        // the originating error with SQLSTATE 25P02. The rollback is atomic,
+        // so surface the original operation failure to the controller instead.
         throw new ApplyIntentError("OPERATION_FAILED", `${operation.kind}: ${detail}`);
       }
     }

@@ -147,6 +147,7 @@ export async function commitArtifact(options: {
   content_sha256: string;
   byte_count: number;
   local_path: string;
+  local_saved: boolean;
   sandbox_path: string;
   sandbox_saved: boolean;
   sandbox_error: string | null;
@@ -180,6 +181,7 @@ export async function commitArtifact(options: {
     content_sha256: registered.content_sha256,
     byte_count: persisted.byteCount,
     local_path: persisted.localPath,
+    local_saved: persisted.localSaved,
     sandbox_path: persisted.sandboxPath,
     sandbox_saved: persisted.sandboxSaved,
     sandbox_error: persisted.sandboxError,

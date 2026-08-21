@@ -25,7 +25,7 @@ function promptFor(videoId) {
     return [
       "Run one pre-research video.",
       `Claim video_id ${videoId} with claim_pre_research_video({ video_id: "${videoId}" }).`,
-      "Then follow agent/instructions.md exactly: load context, load taxonomy, fan out specialists, save 90-ingestion-intent.json.",
+      "Then follow agent/instructions.md exactly: complete only the bounded root-session stage selected by the controller; never fan out subagents.",
       "Do not claim a different video.",
     ].join(" ");
   }

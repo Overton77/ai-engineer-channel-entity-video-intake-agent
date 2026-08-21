@@ -1,11 +1,12 @@
-import { defineTool } from "eve/tools";
+import { defineDynamic, defineTool } from "eve/tools";
 import { z } from "zod";
 import { webSearchSubagentSchema } from "../../contracts/ingestion-intent";
 import { query } from "../lib/postgres";
+import { researchStageFromMessages } from "../lib/turn-capabilities";
 
-export default defineTool({
+const recordWebSearchEvent = defineTool({
   description:
-    "Append one Exa web_search ledger row for the current run. organization_researcher, web_context_scout, and source_verifier must call this after every web_search.",
+    "Append one Exa web_search ledger row for the current run. The root uses the logical stage labels organization_researcher, web_context_scout, and source_verifier after every web_search.",
   inputSchema: z.object({
     run_id: z.uuid(),
     subagent: webSearchSubagentSchema,
@@ -30,5 +31,12 @@ export default defineTool({
       ],
     );
     return { recorded: true as const, search_event_id: rows[0]?.search_event_id ?? null };
+  },
+});
+
+export default defineDynamic({
+  events: {
+    "step.started": (_event, ctx) =>
+      researchStageFromMessages(ctx.messages) ? recordWebSearchEvent : null,
   },
 });

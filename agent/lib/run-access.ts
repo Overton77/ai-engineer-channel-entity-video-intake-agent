@@ -77,7 +77,7 @@ export function assertResearchPhaseAccess(run: PreResearchRun, sessionId: string
 export function assertSynthesisPhaseAccess(run: PreResearchRun, sessionId: string): void {
   if (run.status !== "synthesizing") {
     throw new Error(
-      `ILLEGAL_PHASE: save_pre_research_packet requires synthesizing, got ${run.status}`,
+      `ILLEGAL_PHASE: save_synthesis_stage_packet requires synthesizing, got ${run.status}`,
     );
   }
   if (!run.synthesis_session_id) {

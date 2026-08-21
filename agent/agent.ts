@@ -2,10 +2,13 @@ import { defineAgent } from "eve";
 
 export default defineAgent({
   model: "zai/glm-5.2",
-  reasoning: "medium",
+  reasoning: "low",
+  compaction: {
+    thresholdPercent: 0.35,
+  },
   limits: {
-    maxInputTokensPerSession: 20_000_000,
-    maxOutputTokensPerSession: 250_000,
+    maxInputTokensPerSession: 300_000,
+    maxOutputTokensPerSession: 32_000,
     sessionTimeoutMs: 24 * 60 * 60 * 1000,
   },
 });
