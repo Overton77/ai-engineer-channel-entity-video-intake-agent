@@ -12,6 +12,14 @@
     "start": "eve start",
     "typecheck": "tsc",
     "test": "node --experimental-strip-types --import ./scripts/register-ts.mjs --test tests/**/*.test.mts",
+    "eval": "eve eval",
+    "eval:list": "eve eval --list",
+    "eval:offline": "node --experimental-strip-types --import ./scripts/register-ts.mjs evals/run-offline.mts",
+    "eval:offline:strict": "npm run eval:offline -- --strict",
+    "eval:trace": "eve eval traces --strict",
+    "eval:trace:file": "node --experimental-strip-types --import ./scripts/register-ts.mjs evals/run-trace.mts",
+    "eval:judge": "eve eval packets/semantic-quality --strict",
+    "eval:compare": "node --experimental-strip-types --import ./scripts/register-ts.mjs scripts/compare-eval-runs.mts",
     "list:eligible": "node scripts/list-eligible-videos.mjs",
     "run:next": "node scripts/run-pre-research-session.mjs --next",
     "run:all": "node scripts/run-pre-research-session.mjs --all",
@@ -20,10 +28,12 @@
     "maintenance:prune-eve-runtime": "node scripts/prune-eve-stream-cache.mjs",
     "apply:intent": "node --experimental-strip-types --import ./scripts/register-ts.mjs scripts/apply-pre-research-intent.mts",
     "query:pre-research": "node --experimental-strip-types --import ./scripts/register-ts.mjs scripts/query-pre-research.mts",
-    "readable:summaries": "node scripts/readable-summaries.mjs"
+    "readable:summaries": "node scripts/readable-summaries.mjs",
+    "apify:ingest-transcripts": "node --experimental-strip-types --import ./scripts/register-ts.mjs apify-transcript-ingest/ingest.mts"
   },
   "dependencies": {
     "@vercel/connect": "0.4.3",
+    "@vercel/oidc": "^3.8.1",
     "ai": "^7.0.58",
     "eve": "^0.38.3",
     "pg": "^8.23.0",
@@ -32,6 +42,7 @@
   "devDependencies": {
     "@types/node": "24.x",
     "@types/pg": "^8.21.0",
+    "apify-client": "^2.21.0",
     "typescript": "7.0.2"
   },
   "overrides": {

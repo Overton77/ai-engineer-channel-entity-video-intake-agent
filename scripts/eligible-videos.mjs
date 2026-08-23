@@ -7,6 +7,7 @@ const LIVE_OR_APPLIED_STATUSES = [
   "research_complete",
   "synthesizing",
   "intent_ready",
+  "review_required",
   "applying",
   "applied",
 ];
@@ -63,12 +64,26 @@ async function stateTableExists(pool) {
 }
 
 function buildListQuery(hasStateTable) {
+  const currentStatePredicate = `(${liveOrAppliedPredicate()} or ${finishedPredicate()})`;
   const stateSelect = hasStateTable
     ? `
-        s.ineligibility_reasons,
-        s.pipeline_status,
-        s.eligibility_status,
-        s.pre_research_pipeline_finished
+        case
+          when ${currentStatePredicate} then s.ineligibility_reasons
+          else '{}'::text[]
+        end as ineligibility_reasons,
+        case
+          when ${currentStatePredicate} then s.pipeline_status
+          else null
+        end as pipeline_status,
+        case
+          when ${currentStatePredicate} then s.eligibility_status
+          else 'eligible'
+        end as eligibility_status,
+        case
+          when s.finished_transcript_sha256 = ${CURRENT_TRANSCRIPT_HASH}
+            then s.pre_research_pipeline_finished
+          else false
+        end as pre_research_pipeline_finished
       `
     : `
         '{}'::text[] as ineligibility_reasons,
@@ -195,7 +210,7 @@ export async function listRecoverableRuns({ limit = 1000 } = {}) {
        limit $1`,
       [
         limit,
-        LIVE_OR_APPLIED_STATUSES.filter((status) => status !== "applied"),
+        LIVE_OR_APPLIED_STATUSES.filter((status) => status !== "applied" && status !== "review_required"),
         CURRENT_PACKET_SCHEMA_VERSION,
       ],
     );

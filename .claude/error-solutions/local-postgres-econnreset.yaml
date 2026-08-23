@@ -1,0 +1,39 @@
+id: "local-postgres-econnreset"
+created: "2026-08-23T06:29:00Z"
+updated: "2026-08-23T16:51:00Z"
+
+error:
+  type: "network"
+  category: "DatabaseTransport"
+  language: "nodejs"
+  pattern: "read ECONNRESET from pg-pool during a local read-only production audit"
+  context: "Short-lived operator query from the Windows workstation to Supabase Postgres"
+
+diagnosis:
+  root_cause: "The remote TCP/TLS database connection was reset before the read-only query completed."
+  factors:
+    - "production Vercel scheduler and database writes continued normally"
+    - "the failure occurred in the local pg-pool transport before application-level validation"
+    - "a fresh short-lived process succeeded without changing SQL, code, or credentials"
+
+solution:
+  immediate:
+    - "Retry the read-only command once from a fresh process after a short interval."
+  proper:
+    - "Treat isolated local resets as transport events; inspect production state before diagnosing SQL or pipeline corruption."
+  code_change: null
+
+verification:
+  - "The identical inspect-run-session command succeeded on a fresh connection."
+  - "Finance Agent had advanced from five to eight artifacts with null database error fields."
+
+prevention:
+  - "Keep operator audits short-lived and idempotent."
+  - "Do not mutate data or redeploy for an isolated local ECONNRESET."
+  - "Investigate pool/network configuration only if resets repeat across multiple fresh processes or affect production."
+
+metadata:
+  occurrences: 4
+  last_resolved: "2026-08-23T16:51:00Z"
+  success_rate: 1.0
+  tags: ["postgres", "supabase", "econnreset", "windows", "operator-audit"]

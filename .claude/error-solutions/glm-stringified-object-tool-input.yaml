@@ -1,0 +1,44 @@
+id: "glm-stringified-object-tool-input"
+created: "2026-08-23T06:44:00Z"
+updated: "2026-08-23T07:00:00Z"
+
+error:
+  type: "type"
+  category: "ToolInputValidation"
+  language: "typescript"
+  pattern: "GLM emits a complete top-level Eve tool object argument as a JSON string"
+  context: "Organization-profile synthesis after loading a verified research packet"
+
+diagnosis:
+  root_cause: "The provider serialized selected top-level JSON object arguments instead of emitting structured values; the earlier exact-null compatibility transform consequently treated the primary organization as absent."
+  factors:
+    - "Arrays remained structured while standalone object parameters were stringified"
+    - "The immutable profile schema correctly rejected strings"
+    - "The missing-primary fallback then correctly triggered organization invariants"
+
+solution:
+  immediate:
+    - "Decode JSON-string object arguments at the model-facing synthesis tool boundary."
+  proper:
+    - "Validate the decoded value through the original field schema before tool execution."
+    - "Keep immutable artifact and persistence schemas strict and unchanged."
+    - "For an already immutable legacy profile, promote only one candidate that is internally marked both primary and rank one; leave absent or ambiguous candidates blocked."
+    - "After that unique promotion only, omit provider-authored framework-limitation annotations from the derived review view; preserve all unrelated review reasons and conflicts."
+  code_change: "acceptModelJsonObjectString, effectiveOrganizationProfile, and organization object-field overrides in agent/tools/save_synthesis_stage_packet.ts"
+
+verification:
+  - "Regression test accepts a valid stringified organization object."
+  - "Regression tests reject malformed JSON and decoded objects that violate the strict schema."
+  - "Regression tests recover a unique legacy primary while preserving a genuine no-organization profile."
+  - "Guarded review inspection confirmed valid candidate/source invariants and 0.85 confidence; approved deterministic apply wrote all 12 operations and canonical verification retrieved 12 matching objects."
+  - "TypeScript and all 87 tests passed."
+
+prevention:
+  - "Keep provider compatibility normalizers restricted to model-facing schemas."
+  - "Test both nullable sentinels and stringified object payloads for provider-backed tools."
+
+metadata:
+  occurrences: 2
+  last_resolved: "2026-08-23T07:00:00Z"
+  success_rate: 1.0
+  tags: ["glm", "eve", "zod", "tool-input", "json-string"]

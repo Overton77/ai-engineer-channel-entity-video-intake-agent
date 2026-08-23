@@ -1,16 +1,12 @@
-import { Client } from "eve/client";
 import { loadEnv } from "./load-env.mjs";
+import { createAuthenticatedEveClient } from "./eve-client.mjs";
 
 loadEnv();
 
 const sessionId = process.argv[2];
 const host = process.argv[3] ?? process.env.EVE_URL;
 if (!sessionId || !host) throw new Error("usage: inspect-eve-session <session-id> <host>");
-const token = process.env.VERCEL_OIDC_TOKEN;
-const client = new Client({
-  host,
-  ...(token ? { auth: { vercelOidc: { token } }, redirect: "error" } : {}),
-});
+const client = createAuthenticatedEveClient(host);
 if (process.argv[4] === "--reset") {
   console.log(JSON.stringify(await client.sessions.attach(sessionId).reset({ reason: "Operator retired stale stage session" })));
 } else if (process.argv[4]) {

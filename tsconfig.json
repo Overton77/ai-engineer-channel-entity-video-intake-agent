@@ -9,5 +9,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["agent/**/*.ts", "contracts/**/*.ts", "controller/**/*.ts", "executor/**/*.ts", "evals/**/*.ts", "lib/**/*.ts", "tests/**/*.mts"]
+  "include": ["agent/**/*.ts", "apify-transcript-ingest/**/*.mts", "contracts/**/*.ts", "controller/**/*.ts", "executor/**/*.ts", "evals/**/*.ts", "lib/**/*.ts", "tests/**/*.mts"]
 }

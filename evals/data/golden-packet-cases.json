@@ -1,0 +1,106 @@
+[
+  {
+    "id": "ramp-agent-harness",
+    "video_id": "-rsTkYgnNzM",
+    "run_id": "8e27309e-a7ec-4624-9225-16c404e17a62",
+    "expected": {
+      "primary_category": "agent_architecture_harnesses",
+      "primary_organization": "Ramp",
+      "primary_organization_domain": "ai_adopting_product_company",
+      "profile_review_required": false,
+      "disposition": "applied",
+      "minimum_evidence_anchors": 10
+    }
+  },
+  {
+    "id": "braintrust-evaluation-platform",
+    "video_id": "a4BV0gGmXgA",
+    "run_id": "f9f6a870-2aa9-45bd-9276-9677ae2e3a80",
+    "expected": {
+      "primary_category": "evaluation_testing_benchmarking",
+      "primary_organization": "Braintrust",
+      "primary_organization_domain": "evaluation_observability_llmops",
+      "profile_review_required": false,
+      "disposition": "applied",
+      "minimum_evidence_anchors": 10
+    }
+  },
+  {
+    "id": "anthropic-agent-architecture",
+    "video_id": "CEvIs9y1uog",
+    "run_id": "296363d2-1483-471e-bc87-d41b52e50ce4",
+    "expected": {
+      "primary_category": "agent_architecture_harnesses",
+      "primary_organization": "Anthropic",
+      "primary_organization_domain": "frontier_model_lab",
+      "profile_review_required": true,
+      "disposition": "applied",
+      "minimum_evidence_anchors": 10
+    }
+  },
+  {
+    "id": "intuit-grounded-financial-ai",
+    "video_id": "Owb8g3yDyzo",
+    "run_id": "97f23f98-de3c-4f8d-8dee-8509fe3ea14b",
+    "expected": {
+      "primary_category": "post_training_continual_learning",
+      "primary_organization": "Intuit",
+      "primary_organization_domain": "vertical_ai_application",
+      "profile_review_required": false,
+      "disposition": "applied",
+      "minimum_evidence_anchors": 10
+    }
+  },
+  {
+    "id": "llamaindex-retrieval-platform",
+    "video_id": "TRjq7t2Ms5I",
+    "run_id": "a9322e93-4e3b-4e9c-9797-b9b0363449b5",
+    "expected": {
+      "primary_category": "retrieval_search_knowledge",
+      "primary_organization": "LlamaIndex",
+      "primary_organization_domain": "retrieval_knowledge_platform",
+      "profile_review_required": false,
+      "disposition": "applied",
+      "minimum_evidence_anchors": 10
+    }
+  },
+  {
+    "id": "agenta-evaluation-platform",
+    "video_id": "X4dEHRzBLmc",
+    "run_id": "b803fa4c-21b4-4090-9d53-2f392ea01a7b",
+    "expected": {
+      "primary_category": "evaluation_testing_benchmarking",
+      "primary_organization": "Agenta",
+      "primary_organization_domain": "evaluation_observability_llmops",
+      "profile_review_required": false,
+      "disposition": "applied",
+      "minimum_evidence_anchors": 10
+    }
+  },
+  {
+    "id": "stealth-company-review-boundary",
+    "video_id": "ZyIoTOAbRfs",
+    "run_id": "0b7dfea6-0ca6-48a5-bc32-3853db185384",
+    "expected": {
+      "primary_category": "ai_data_engineering",
+      "primary_organization": "Data and Benchmarking Co (Stealth)",
+      "primary_organization_domain": "ai_data_curation_training_platform",
+      "profile_review_required": true,
+      "disposition": "review_required",
+      "minimum_evidence_anchors": 10
+    }
+  },
+  {
+    "id": "kepler-vertical-agent",
+    "video_id": "Tt2kX2sgQio",
+    "run_id": "aaf33572-7b17-46b9-aa69-f0b8fc24df54",
+    "expected": {
+      "primary_category": "agent_architecture_harnesses",
+      "primary_organization": "Kepler",
+      "primary_organization_domain": "vertical_ai_application",
+      "profile_review_required": false,
+      "disposition": "applied",
+      "minimum_evidence_anchors": 10
+    }
+  }
+]

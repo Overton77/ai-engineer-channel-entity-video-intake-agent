@@ -8,9 +8,9 @@ Load the sibling file `references/postgres-schema.md` with `read_file` at `$HOME
 
 You may name only these objects:
 
-## Source (read)
+## Source (read; executor completion write)
 
-- `public.research_starter_videos` — catalog + transcript pointer/text. Read through `claim_pre_research_video` and `load_video_context`.
+- `public.research_starter_videos` — catalog + transcript pointer/text. Read through `claim_pre_research_video` and `load_video_context`. Only the deterministic executor finalizer may set `pre_research_complete = true`, after receipt registration and pipeline finalization.
 
 ## Taxonomy (read)
 

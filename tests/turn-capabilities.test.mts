@@ -5,6 +5,7 @@ import {
   researchStageFromMessages,
   synthesisStageFromMessages,
 } from "../agent/lib/turn-capabilities";
+import { stageAllowsWebFetch } from "../agent/lib/stage-network";
 
 describe("turn stage capability resolution", () => {
   it("uses the newest research stage marker in a shared session", () => {
@@ -51,5 +52,14 @@ describe("turn stage capability resolution", () => {
       { role: "user", content: "Save only the missing registered artifact kinds: organization_profile." },
     ] as ModelMessage[];
     assert.equal(synthesisStageFromMessages(messages), "organization_profile");
+  });
+
+  it("exposes URL fetching only for bounded web-research stages", () => {
+    assert.equal(stageAllowsWebFetch("transcript_taxonomy"), false);
+    assert.equal(stageAllowsWebFetch("web_context"), true);
+    assert.equal(stageAllowsWebFetch("organization_research"), true);
+    assert.equal(stageAllowsWebFetch("source_verification"), true);
+    assert.equal(stageAllowsWebFetch("curriculum"), false);
+    assert.equal(stageAllowsWebFetch(null), false);
   });
 });

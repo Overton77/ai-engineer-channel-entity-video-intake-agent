@@ -1,0 +1,38 @@
+{
+  "schema_version": "entity-metric-probe-0.1.0",
+  "observed_at": "2026-08-23T17:21:13.380Z",
+  "examples": {
+    "githubRepo": "langchain-ai/langgraph",
+    "githubUser": "Overton77",
+    "npmPackage": "@langchain/langgraph",
+    "pypiPackage": "langgraph",
+    "huggingFaceModel": "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "paperId": "ARXIV:2210.03629",
+    "doi": "10.48550/arXiv.2210.03629",
+    "crossrefDoi": "10.1038/s41586-021-03819-2",
+    "youtubeUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+  },
+  "include_paid": true,
+  "results": [
+    {
+      "probe": "xai_x_search",
+      "ok": true,
+      "source": "xai_responses_x_search",
+      "locator": "https://api.x.ai/v1/responses",
+      "observed_at": "2026-08-23T17:21:13.379Z",
+      "metrics": {
+        "model": "grok-4.6",
+        "status": "completed",
+        "citations_or_sources_count": 0,
+        "input_tokens": 11686,
+        "output_tokens": 2839
+      },
+      "result_excerpt": "[{\"id\":\"rs_a7bb22d9-f05f-92c9-87dc-0493e29c219b\",\"summary\":[{\"text\":\"The user wants the most recent public X post by @OpenAI. I need to return only its date and URL. Do not estimate anything.\\n2024-10-04T18:15:00Z\\nhttps://x.\",\"type\":\"summary_text\"}],\"type\":\"reasoning\",\"status\":\"completed\"},{\"call_id\":\"xs_call-ca2904ec-ea41-4234-8d76-9a49927c891e-0\",\"input\":\"{\\\"query\\\":\\\"from:OpenAI\\\",\\\"limit\\\":\\\"5\\\",\\\"mode\\\":\\\"Latest\\\"}\",\"name\":\"x_keyword_search\",\"type\":\"custom_tool_call\",\"id\":\"ctc_a7bb22d9-f05f-92c9-87dc-0493e29c219b_call-ca2904ec-ea41-4234-8d76-9a49927c891e-0\",\"status\":\"completed\"},{\"id\":\"tco_a7bb22d9-f05f-92c9-87dc-0493e29c219b_call-ca2904ec-ea41-4234-8d76-9a49927c891e-0\",\"summary\":[],\"type\":\"reasoning\",\"status\":\"completed\"},{\"call_id\":\"xs_call-ca2904ec-ea41-4234-8d76-9a49927c891e-1\",\"input\":\"{\\\"post_id\\\":\\\"2090885188897460249\\\"}\",\"name\":\"x_thread_fetch\",\"type\":\"custom_tool_call\",\"id\":\"ctc_a7bb22d9-f05f-92c9-87dc-0493e29c219b_call-ca2904ec-ea41-4234-8d76-9a49927c891e-1\",\"status\":\"completed\"},{\"id\":\"tco_a7bb22d9-f05f-92c9-87dc-0493e29c219b_call-ca2904ec-ea41-4234-8d76-9a49927c891e-1\",\"summary\":[],\"type\":\"reasoning\",\"status\":\"completed\"},{\"content\":[{\"type\":\"output_text\",\"text\":\"Fri, 21 Aug 2026 19:34:10 GMT\\nhttps://x.com/OpenAI/status/2090885188897460249\",\"logprobs\":[],\"annotations\":[{\"type\":\"url_citation\",\"url\":\"https://x.com/i/status/2090885188897460249\",\"start_index\":0,\"end_index\":0,\"title\":\"https://x.com/i/status/2090885188897460249\"},{\"type\":\"url_citation\",\"url\":\"https://x.com/i/status/2090488285198250017\",\"start_index\":0,\"end_index\":0,\"title\":\"https://x.com/i/status/2090488285198250017\"},{\"type\":\"url_citation\",\"url\":\"https://x.com/i/status/2090885187634905500\",\"start_index\":0,\"end_index\":0,\"title\":\"https://x.com/i/status/2090885187634905500\"},{\"type\":\"url_citation\",\"url\":\"https://x.com/i/status/2090165329867743501\",\"start_index\":0,\"end_index\":0,\"title\":\"https://x.com/i/status/2090165329867743501\"},{\"type\":\"url_citation\",\"url\":\"https://x.com/i/status/2090165328290701800\",\"start_index\":0,\"end_index\":0,\"title\":\"https://x.com/i/status/2090165328290701800\"}]}],\"id\":\"msg_a7bb22d9-f05f-92c9-87dc-0493e29c219b\",\"role\":\"assistant\",\"type\":\"message\",\"status\":\"completed\"}]",
+      "citations": [],
+      "caveats": [
+        "xAI X Search is a grounded discovery/synthesis tool, not the canonical X Developer API metric endpoint.",
+        "Model-rendered engagement counts must remain unverified unless anchored to structured provider output or independently fetched."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "schema_version": "entity-metric-probe-0.1.0",
+  "observed_at": "2026-08-23T00:49:18.411Z",
+  "examples": {
+    "githubRepo": "langchain-ai/langgraph",
+    "githubUser": "Overton77",
+    "npmPackage": "@langchain/langgraph",
+    "pypiPackage": "langgraph",
+    "huggingFaceModel": "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "paperId": "ARXIV:2210.03629",
+    "doi": "10.48550/arXiv.2210.03629",
+    "crossrefDoi": "10.1038/s41586-021-03819-2",
+    "youtubeUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+  },
+  "include_paid": true,
+  "results": [
+    {
+      "probe": "pypi_downloads",
+      "ok": true,
+      "source": "pypistats_api",
+      "locator": "https://pypistats.org/api/packages/langgraph/recent",
+      "observed_at": "2026-08-23T00:49:18.085Z",
+      "metrics": {
+        "last_day": 2493477,
+        "last_month": 71995453,
+        "last_week": 16615254
+      },
+      "caveats": [
+        "PyPI does not publish a first-party simple download-count endpoint; pypistats derives counts from public BigQuery data."
+      ]
+    },
+    {
+      "probe": "crossref_paper",
+      "ok": true,
+      "source": "crossref",
+      "locator": "https://api.crossref.org/works/10.1038%2Fs41586-021-03819-2",
+      "observed_at": "2026-08-23T00:49:18.235Z",
+      "metrics": {
+        "is_referenced_by_count": 44097,
+        "references_count": 84,
+        "type": "journal-article",
+        "deposited_at": "2024-12-05T11:08:10Z",
+        "indexed_at": "2026-08-22T21:36:57Z"
+      },
+      "caveats": [
+        "Crossref counts cover deposited links in its graph and should not be equated with another citation provider."
+      ]
+    },
+    {
+      "probe": "xai_x_search",
+      "ok": false,
+      "error": "HTTP 400",
+      "status": 400,
+      "details": "{\"code\":\"invalid-argument\",\"error\":\"Incorrect API key provided. You can obtain an API key from https://console.x.ai.\"}"
+    }
+  ]
+}

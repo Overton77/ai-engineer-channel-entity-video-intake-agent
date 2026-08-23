@@ -1,0 +1,4 @@
+interface:
+  display_name: "Operate Eve Pre-Research"
+  short_description: "Run and inspect the pre-research queue"
+  default_prompt: "Use $operate-eve-pre-research to audit and safely continue the deployed pre-research queue."

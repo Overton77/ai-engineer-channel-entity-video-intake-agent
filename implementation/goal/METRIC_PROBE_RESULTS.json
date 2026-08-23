@@ -1,0 +1,256 @@
+{
+  "schema_version": "entity-metric-probe-0.1.0",
+  "observed_at": "2026-08-23T00:53:08.482Z",
+  "examples": {
+    "githubRepo": "langchain-ai/langgraph",
+    "githubUser": "Overton77",
+    "npmPackage": "@langchain/langgraph",
+    "pypiPackage": "langgraph",
+    "huggingFaceModel": "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "paperId": "ARXIV:2210.03629",
+    "doi": "10.48550/arXiv.2210.03629",
+    "crossrefDoi": "10.1038/s41586-021-03819-2",
+    "youtubeUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+  },
+  "include_paid": false,
+  "results": [
+    {
+      "probe": "github_repo",
+      "ok": true,
+      "source": "github_rest",
+      "locator": "https://api.github.com/repos/langchain-ai/langgraph",
+      "observed_at": "2026-08-23T00:53:04.580Z",
+      "metrics": {
+        "stars": 40255,
+        "forks": 6777,
+        "watchers": 173,
+        "open_issues_including_pull_requests": 709,
+        "network_count": 6777,
+        "size_kib": 525598,
+        "archived": false,
+        "last_push_at": "2026-08-23T00:22:18Z",
+        "created_at": "2023-08-09T18:33:12Z",
+        "updated_at": "2026-08-23T00:50:15Z",
+        "contributor_count_lower_bound": 285,
+        "recent_release_count_sample": 5,
+        "last_release_at": "2026-08-19T18:05:32Z",
+        "commits_last_52_weeks": 838
+      },
+      "caveats": [
+        "open_issues_count includes pull requests",
+        "stars/watchers are attention signals, not evidence quality",
+        "traffic views/clones require push access and only expose a short rolling window"
+      ],
+      "rate_limit": {
+        "limit": "5000",
+        "remaining": "4989",
+        "reset": "1787448611"
+      }
+    },
+    {
+      "probe": "github_user",
+      "ok": true,
+      "source": "github_rest",
+      "locator": "https://api.github.com/users/Overton77",
+      "observed_at": "2026-08-23T00:53:04.836Z",
+      "metrics": {
+        "public_repositories": 28,
+        "followers": 1,
+        "following": 1,
+        "account_created_at": "2023-05-10T04:13:42Z",
+        "profile_updated_at": "2026-08-19T03:39:12Z"
+      },
+      "caveats": [
+        "Profile counts do not establish authorship, employment, expertise, or contribution quality."
+      ],
+      "rate_limit": {
+        "limit": "5000",
+        "remaining": "4998",
+        "reset": "1787449673"
+      }
+    },
+    {
+      "probe": "npm_downloads",
+      "ok": true,
+      "source": "npm_downloads_api",
+      "locator": "https://api.npmjs.org/downloads/point/last-month/%40langchain%2Flanggraph",
+      "observed_at": "2026-08-23T00:53:05.278Z",
+      "metrics": {
+        "downloads_last_month": 12763974,
+        "start": "2026-07-23",
+        "end": "2026-08-21"
+      },
+      "caveats": [
+        "Downloads include CI, mirrors, caches, bots, and repeated installs; compare within registry and cohort."
+      ]
+    },
+    {
+      "probe": "pypi_downloads",
+      "ok": true,
+      "source": "pypi_json_api",
+      "locator": "https://pypi.org/pypi/langgraph/json",
+      "observed_at": "2026-08-23T00:53:06.176Z",
+      "metrics": {
+        "downloads_unavailable": true,
+        "latest_version": "1.2.11",
+        "release_count": 276
+      },
+      "acquisition_error": "pypistats unavailable: HTTP 429",
+      "caveats": [
+        "PyPI's official JSON API exposes package metadata but no download counts.",
+        "Use pypistats or query PyPI's public BigQuery download dataset when available."
+      ]
+    },
+    {
+      "probe": "huggingface_model",
+      "ok": true,
+      "source": "huggingface_hub_api",
+      "locator": "https://huggingface.co/api/models/Qwen/Qwen2.5-Coder-7B-Instruct",
+      "observed_at": "2026-08-23T00:53:06.305Z",
+      "metrics": {
+        "downloads_30d": 2412461,
+        "likes": 778,
+        "last_modified_at": "2025-01-12T02:03:41.000Z",
+        "library_name": "transformers",
+        "pipeline_tag": "text-generation",
+        "gated": false
+      },
+      "caveats": [
+        "Hub downloads use file-query counting rules and are not unique users or production adoption."
+      ]
+    },
+    {
+      "probe": "openalex_paper",
+      "ok": true,
+      "source": "openalex",
+      "locator": "https://api.openalex.org/works?filter=doi%3A10.48550%2Farxiv.2210.03629&per-page=1",
+      "observed_at": "2026-08-23T00:53:07.250Z",
+      "metrics": {
+        "openalex_id": "https://openalex.org/W4304195432",
+        "cited_by_count": 578,
+        "works_cited_count": 0,
+        "citation_percentile": null,
+        "fwci": null,
+        "open_access": {
+          "is_oa": true,
+          "oa_status": "green",
+          "oa_url": "https://arxiv.org/pdf/2210.03629",
+          "any_repository_has_fulltext": true
+        },
+        "publication_date": "2022-10-06",
+        "topics": [
+          {
+            "id": "https://openalex.org/T10028",
+            "display_name": "Topic Modeling",
+            "score": 0.9943000078201294
+          },
+          {
+            "id": "https://openalex.org/T10181",
+            "display_name": "Natural Language Processing Techniques",
+            "score": 0.9544000029563904
+          },
+          {
+            "id": "https://openalex.org/T12026",
+            "display_name": "Explainable Artificial Intelligence (XAI)",
+            "score": 0.9132000207901001
+          }
+        ],
+        "counts_by_year": [
+          {
+            "year": 2026,
+            "cited_by_count": 75
+          },
+          {
+            "year": 2025,
+            "cited_by_count": 224
+          },
+          {
+            "year": 2024,
+            "cited_by_count": 168
+          },
+          {
+            "year": 2023,
+            "cited_by_count": 110
+          },
+          {
+            "year": 2022,
+            "cited_by_count": 1
+          }
+        ]
+      },
+      "caveats": [
+        "Citation coverage and author disambiguation vary; snapshot counts and retain external IDs."
+      ]
+    },
+    {
+      "probe": "semantic_scholar_paper",
+      "ok": false,
+      "error": "HTTP 429",
+      "status": 429,
+      "details": "{\"message\":\"Too Many Requests. Please wait and try again or apply for a key for higher rate limits. https://www.semanticscholar.org/product/api#api-key-form\",\"code\":\"429\"}"
+    },
+    {
+      "probe": "crossref_paper",
+      "ok": true,
+      "source": "crossref",
+      "locator": "https://api.crossref.org/works/10.1038%2Fs41586-021-03819-2",
+      "observed_at": "2026-08-23T00:53:08.243Z",
+      "metrics": {
+        "is_referenced_by_count": 44097,
+        "references_count": 84,
+        "type": "journal-article",
+        "deposited_at": "2024-12-05T11:08:10Z",
+        "indexed_at": "2026-08-22T21:36:57Z"
+      },
+      "caveats": [
+        "Crossref counts cover deposited links in its graph and should not be equated with another citation provider."
+      ]
+    },
+    {
+      "probe": "youtube_oembed",
+      "ok": true,
+      "source": "youtube_oembed",
+      "locator": "https://www.youtube.com/oembed?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3DdQw4w9WgXcQ&format=json",
+      "observed_at": "2026-08-23T00:53:08.342Z",
+      "metrics": {
+        "title": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+        "author_name": "Rick Astley",
+        "author_url": "https://www.youtube.com/@RickAstleyYT"
+      },
+      "caveats": [
+        "oEmbed resolves identity but exposes no view/like/comment metrics; those require YouTube Data API credentials."
+      ]
+    },
+    {
+      "probe": "tavily_search",
+      "ok": true,
+      "source": "tavily_search",
+      "locator": "https://api.tavily.com/search",
+      "observed_at": "2026-08-23T00:53:08.482Z",
+      "metrics": {
+        "result_count": 3,
+        "response_time_seconds": 0
+      },
+      "candidates": [
+        {
+          "title": "Unveiling the LangGraph",
+          "url": "https://community.intersystems.com/post/unveiling-langgraph",
+          "provider_score": 0.6783488
+        },
+        {
+          "title": "LangGraph overview - Docs by LangChain",
+          "url": "https://docs.langchain.com/oss/python/langgraph/overview",
+          "provider_score": 0.5614318
+        },
+        {
+          "title": "langgraph - LangChain Reference",
+          "url": "https://reference.langchain.com/python/langgraph",
+          "provider_score": 0.5313802
+        }
+      ],
+      "caveats": [
+        "Search relevance is a discovery signal; fetch and qualify the underlying source before using it as evidence."
+      ]
+    }
+  ]
+}

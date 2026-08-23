@@ -1,0 +1,36 @@
+id: "inspect-review-required-missing-run-id"
+created: "2026-08-23T15:07:00Z"
+updated: "2026-08-23T15:07:00Z"
+
+error:
+  type: "runtime"
+  category: "InvalidInvocation"
+  language: "nodejs"
+  pattern: "usage: inspect-review-required <run-id>"
+  context: "Read-only review inspection script invoked without its required run UUID"
+
+diagnosis:
+  root_cause: "scripts/inspect-review-required.mjs requires process.argv[2] to contain one run UUID; it is not a queue-list command"
+  factors:
+    - "The script name can be mistaken for a review-queue listing command"
+    - "Its usage contract is enforced immediately at startup"
+
+solution:
+  immediate:
+    - "Rerun the script with the explicit review-required run UUID"
+  proper:
+    - "Use node --experimental-strip-types --import ./scripts/register-ts.mjs scripts/inspect-review-required.mjs <run-id>"
+  code_change: null
+
+verification:
+  - "The command returns the ingestion intent, organization operations, review reasons, conflicts, and primary organization"
+  - "No production state is mutated"
+
+prevention:
+  - "Treat inspect-review-required.mjs as a single-run inspector and obtain run IDs from the handoff or an orchestration audit first"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-23T15:07:00Z"
+  success_rate: 1.0
+  tags: ["nodejs", "operator", "review-inspection", "read-only"]

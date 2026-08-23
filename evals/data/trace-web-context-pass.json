@@ -1,0 +1,88 @@
+[
+  {
+    "type": "session.started",
+    "data": {
+      "trace": {
+        "traceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "spanId": "bbbbbbbbbbbbbbbb",
+        "traceFlags": 1
+      }
+    },
+    "meta": { "id": "evt-000", "at": "2026-08-22T00:00:00Z" }
+  },
+  {
+    "type": "turn.started",
+    "data": {
+      "sequence": 0,
+      "turnId": "turn_0",
+      "trace": {
+        "traceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "spanId": "cccccccccccccccc",
+        "traceFlags": 1
+      }
+    },
+    "meta": { "id": "evt-001", "at": "2026-08-22T00:00:01Z" }
+  },
+  {
+    "type": "message.received",
+    "data": {
+      "message": "Continue RESEARCH. This bounded turn is only stage web_context.",
+      "sequence": 0,
+      "turnId": "turn_0"
+    },
+    "meta": { "id": "evt-002", "at": "2026-08-22T00:00:02Z" }
+  },
+  {
+    "type": "actions.requested",
+    "data": {
+      "actions": [
+        {
+          "kind": "tool-call",
+          "callId": "call-save",
+          "toolName": "save_research_stage_packet",
+          "input": { "stage": "web_context" }
+        }
+      ],
+      "sequence": 0,
+      "stepIndex": 0,
+      "turnId": "turn_0"
+    },
+    "meta": { "id": "evt-003", "at": "2026-08-22T00:00:03Z" }
+  },
+  {
+    "type": "action.result",
+    "data": {
+      "result": {
+        "kind": "tool-result",
+        "callId": "call-save",
+        "toolName": "save_research_stage_packet",
+        "output": { "saved": true }
+      },
+      "status": "completed",
+      "sequence": 0,
+      "stepIndex": 0,
+      "turnId": "turn_0"
+    },
+    "meta": { "id": "evt-004", "at": "2026-08-22T00:00:04Z" }
+  },
+  {
+    "type": "step.completed",
+    "data": {
+      "finishReason": "stop",
+      "sequence": 0,
+      "stepIndex": 1,
+      "turnId": "turn_0",
+      "usage": {
+        "inputTokens": 100,
+        "outputTokens": 20,
+        "costUsd": 0.01
+      }
+    },
+    "meta": { "id": "evt-005", "at": "2026-08-22T00:00:05Z" }
+  },
+  {
+    "type": "turn.completed",
+    "data": { "sequence": 0, "turnId": "turn_0" },
+    "meta": { "id": "evt-006", "at": "2026-08-22T00:00:06Z" }
+  }
+]

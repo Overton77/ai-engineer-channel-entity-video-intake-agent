@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { stableUuid } from "../../lib/stable-uuid";
 import { z } from "zod";
 import { transcriptAnalysisSchema, type TranscriptAnalysis } from "../../contracts/pre-research-packet";
 import { PACKET_SCHEMA_VERSION } from "../../contracts/enums";
@@ -92,32 +93,55 @@ export async function summarizeTranscriptIteratively(input: {
   transcript: string;
   reducer: TranscriptReducer;
   chunkCharacters?: number;
+  completedChunkCount?: number;
+  initialSummary?: RollingTranscriptSummary | null;
+  /** Absolute controller deadline. Completed chunks remain checkpointable. */
+  deadlineAtMs?: number;
+  onChunkComplete?: (input: {
+    chunk: TranscriptChunk;
+    completedChunkCount: number;
+    summary: RollingTranscriptSummary;
+  }) => Promise<void>;
 }): Promise<{ summary: RollingTranscriptSummary; chunks: TranscriptChunk[] }> {
   const chunks = splitTranscript(input.transcript, input.chunkCharacters);
   if (chunks.length === 0) {
     throw new Error("TRANSCRIPT_EMPTY: iterative summarization requires non-empty text");
   }
 
-  let previous: RollingTranscriptSummary | null = null;
-  for (const chunk of chunks) {
+  const completedChunkCount = input.completedChunkCount ?? 0;
+  if (!Number.isInteger(completedChunkCount) || completedChunkCount < 0 || completedChunkCount > chunks.length) {
+    throw new Error("TRANSCRIPT_CHECKPOINT_INVALID: completed chunk count is out of range");
+  }
+  if (completedChunkCount > 0 && !input.initialSummary) {
+    throw new Error("TRANSCRIPT_CHECKPOINT_INVALID: resumed chunks require an initial summary");
+  }
+  let previous = input.initialSummary
+    ? rollingTranscriptSummarySchema.parse(input.initialSummary)
+    : null;
+  for (const chunk of chunks.slice(completedChunkCount)) {
+    if (input.deadlineAtMs != null && Date.now() >= input.deadlineAtMs) {
+      throw new Error(
+        "CONTROLLER_INVOCATION_BUDGET_EXHAUSTED: transcript reduction will resume from its last durable section checkpoint.",
+      );
+    }
     const candidate = await input.reducer({ chunk, previous });
     previous = rollingTranscriptSummarySchema.parse(candidate);
+    await input.onChunkComplete?.({
+      chunk,
+      completedChunkCount: chunk.index + 1,
+      summary: previous,
+    });
   }
 
+  if (!previous) {
+    throw new Error("TRANSCRIPT_CHECKPOINT_INVALID: completed transcript has no summary");
+  }
   return { summary: previous!, chunks };
 }
 
 function clampOffset(value: number | null, transcriptLength: number): number | null {
   if (value == null) return null;
   return Math.max(0, Math.min(transcriptLength, value));
-}
-
-function stableUuid(seed: string): string {
-  const bytes = createHash("sha256").update(seed, "utf8").digest().subarray(0, 16);
-  bytes[6] = (bytes[6]! & 0x0f) | 0x50;
-  bytes[8] = (bytes[8]! & 0x3f) | 0x80;
-  const hex = bytes.toString("hex");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
 export function toTranscriptAnalysis(input: {

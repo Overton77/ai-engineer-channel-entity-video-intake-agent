@@ -5,6 +5,9 @@ Shared files for every agent session working this goal. Read in this order.
 | File | Purpose |
 | --- | --- |
 | [goal/PRE_RESEARCH_V2_IMPLEMENTATION_PLAN.md](./goal/PRE_RESEARCH_V2_IMPLEMENTATION_PLAN.md) | Full v2 contract. Do not weaken it. |
+| [goal/KNOWLEDGE_DISCOVERY_ARCHITECTURE.md](./goal/KNOWLEDGE_DISCOVERY_ARCHITECTURE.md) | Governed schema evolution, discovery loop, system boundaries, and retrieval contract. |
+| [goal/SOURCE_RANKING_AND_EVALUATION_SPEC.md](./goal/SOURCE_RANKING_AND_EVALUATION_SPEC.md) | Versioned source/domain/job ranking formulas, datasets, metrics, and gates. |
+| [goal/KNOWLEDGE_DISCOVERY_IMPLEMENTATION_PLAN.md](./goal/KNOWLEDGE_DISCOVERY_IMPLEMENTATION_PLAN.md) | Migration order, file map, delivery slices, acceptance criteria, and Cursor/Eve rollout. |
 | [SCOPE.md](./SCOPE.md) | Approved 2026-08-16. Code mission is complete; live smoke is next. |
 | [PROGRESS.md](./PROGRESS.md) | What shipped, remote apply notes, leftover risk. |
 | [HANDOFF.md](./HANDOFF.md) | How the next session runs one live v2 video without re-deriving the plan. |

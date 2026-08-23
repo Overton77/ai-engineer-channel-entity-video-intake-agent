@@ -46,6 +46,7 @@ export type AuthoritativeSourceInput = {
   authority_tier: string;
   publicly_retrievable: boolean;
   verification_status: string;
+  supports?: readonly string[];
 };
 
 export type OrganizationCandidateInput = {
@@ -60,10 +61,97 @@ export type OrganizationCandidateInput = {
   relationship_roles?: readonly string[];
 };
 
+export function filterOrganizationSourcesForCandidates<
+  TSource extends { organization_candidate_id: string },
+>(
+  candidates: readonly { organization_candidate_id?: string }[],
+  sources: readonly TSource[],
+): TSource[] {
+  const candidateIds = new Set(
+    candidates
+      .map((candidate) => candidate.organization_candidate_id)
+      .filter((value): value is string => Boolean(value)),
+  );
+  return sources.filter((source) => candidateIds.has(source.organization_candidate_id));
+}
+
+/**
+ * Model-authored source ranks are advisory ordering hints. Re-number them in
+ * packet order so every candidate receives the contiguous, unique ranks the
+ * ingestion contract requires. Packet order is stable and preserves the
+ * model's intended priority even when it repeats or skips numeric ranks.
+ */
+export function normalizeOrganizationSourceRanks<
+  TSource extends { organization_candidate_id: string; source_rank: number },
+>(sources: readonly TSource[]): TSource[] {
+  const nextRankByCandidate = new Map<string, number>();
+  return sources.map((source) => {
+    const nextRank = (nextRankByCandidate.get(source.organization_candidate_id) ?? 0) + 1;
+    nextRankByCandidate.set(source.organization_candidate_id, nextRank);
+    return { ...source, source_rank: nextRank };
+  });
+}
+
+/**
+ * One public page can legitimately carry more than one model-authored role
+ * (most often a startup root page labelled once as homepage and once as
+ * product). Postgres intentionally stores one row per candidate/normalized
+ * URL, so merge those semantic aliases before persistence. For a root page,
+ * retain `official_homepage` and union its implementation support claims; the
+ * authoritative-source validator can then assess both facts without a
+ * duplicate database row.
+ */
+export function mergeDuplicateOrganizationSources<
+  TSource extends {
+    organization_candidate_id: string;
+    normalized_url: string;
+    source_role: string;
+    supports: readonly string[];
+    is_required_core_source: boolean;
+  },
+>(sources: readonly TSource[]): TSource[] {
+  const merged: TSource[] = [];
+  const indexByKey = new Map<string, number>();
+  for (const source of sources) {
+    const key = `${source.organization_candidate_id}\u0000${source.normalized_url}`;
+    const existingIndex = indexByKey.get(key);
+    if (existingIndex === undefined) {
+      indexByKey.set(key, merged.length);
+      merged.push({ ...source } as TSource);
+      continue;
+    }
+
+    const existing = merged[existingIndex];
+    let isRootUrl = false;
+    try {
+      const parsed = new URL(source.normalized_url);
+      isRootUrl = parsed.pathname === "/" || parsed.pathname === "";
+    } catch {
+      // Schemas reject malformed URLs. Keep deterministic first-row behavior
+      // here so this pure normalizer does not introduce a second parse error.
+    }
+    const preferred =
+      isRootUrl &&
+      source.source_role === "official_homepage" &&
+      existing.source_role !== "official_homepage"
+        ? source
+        : existing;
+    merged[existingIndex] = {
+      ...preferred,
+      supports: [...new Set([...existing.supports, ...source.supports])],
+      is_required_core_source:
+        existing.is_required_core_source || source.is_required_core_source,
+    } as TSource;
+  }
+  return merged;
+}
+
 const identityOwnershipRoleSet = new Set<string>(identityOwnershipSourceRoles);
 const implementationTechnicalRoleSet = new Set<string>(implementationTechnicalSourceRoles);
 const authoritativeTierSet = new Set<string>(authoritativeAuthorityTiers);
 const domainCodeSet = new Set<string>(researchOrganizationDomainCodes);
+const implementationClaimPattern =
+  /\b(product|platform|api|sdk|repository|framework|engine|tool(?:ing)?|library|model(?: card)?|system|implementation|documentation|developer)\b/i;
 
 function result(errors: string[]): InvariantResult {
   return { ok: errors.length === 0, errors };
@@ -77,15 +165,31 @@ export function isQualifyingAuthoritativeSource(source: AuthoritativeSourceInput
   );
 }
 
+/**
+ * Small, single-page company sites frequently use their root homepage as both
+ * the identity page and the product page. Preserve the dedicated technical
+ * role preference, but allow a verified first-party homepage to satisfy the
+ * technical half only when its persisted support claims explicitly describe
+ * a product, platform, system, or other implementation. A generic company
+ * description remains insufficient.
+ */
+export function isImplementationTechnicalSource(
+  source: AuthoritativeSourceInput,
+): boolean {
+  if (implementationTechnicalRoleSet.has(source.source_role)) return true;
+  return (
+    source.source_role === "official_homepage" &&
+    (source.supports ?? []).some((claim) => implementationClaimPattern.test(claim))
+  );
+}
+
 export function validateAuthoritativeSourceMinimum(
   sources: readonly AuthoritativeSourceInput[],
 ): InvariantResult {
   const errors: string[] = [];
   const qualifying = sources.filter(isQualifyingAuthoritativeSource);
   const hasIdentity = qualifying.some((source) => identityOwnershipRoleSet.has(source.source_role));
-  const hasTechnical = qualifying.some((source) =>
-    implementationTechnicalRoleSet.has(source.source_role),
-  );
+  const hasTechnical = qualifying.some(isImplementationTechnicalSource);
 
   if (!hasIdentity) {
     errors.push(
@@ -184,6 +288,14 @@ export function validateOrganizationCandidateSet(
     ) {
       errors.push(
         `${label}: primary featured organization must include relationship role primary_featured_organization`,
+      );
+    }
+    if (
+      !candidate.is_primary_featured &&
+      candidate.relationship_roles?.includes("primary_featured_organization")
+    ) {
+      errors.push(
+        `${label}: non-primary organization must not include relationship role primary_featured_organization`,
       );
     }
   }

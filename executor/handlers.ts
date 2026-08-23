@@ -9,6 +9,7 @@ import { clientQuery } from "./postgres";
 import { tableForOperationKind } from "./operations";
 import { normalizeOfficialUrl, normalizeUrl } from "./url-normalization";
 import { normalizeApplicationDomainAssignments } from "../lib/application-domain";
+import { stableUuid } from "../lib/stable-uuid";
 
 export type HandlerContext = {
   client: PoolClient;
@@ -17,6 +18,7 @@ export type HandlerContext = {
   analysisId: string | null;
   researchAsOf: string | null;
   videoPublishedAt: Date | string | null;
+  organizationCandidateIdMap?: Map<string, string>;
 };
 
 export type HandlerResult = {
@@ -353,7 +355,28 @@ async function replaceOrganizationCandidates(
     `delete from public.research_organization_candidate where analysis_id = $1`,
     [analysisId],
   );
+  const requestedIds = payload.map((candidate) => candidate.organization_candidate_id);
+  const collisions = requestedIds.length > 0
+    ? await clientQuery<{ organization_candidate_id: string }>(
+        ctx.client,
+        `select organization_candidate_id
+           from public.research_organization_candidate
+          where organization_candidate_id = any($1::uuid[])
+            and analysis_id <> $2`,
+        [requestedIds, analysisId],
+      )
+    : [];
+  const collisionIds = new Set(collisions.map((row) => row.organization_candidate_id));
+  ctx.organizationCandidateIdMap = new Map(
+    payload.map((candidate) => [
+      candidate.organization_candidate_id,
+      collisionIds.has(candidate.organization_candidate_id)
+        ? stableUuid(`pre-research:${ctx.runId}:organization:${candidate.normalized_name}`)
+        : candidate.organization_candidate_id,
+    ]),
+  );
   for (const candidate of payload) {
+    const candidateId = ctx.organizationCandidateIdMap.get(candidate.organization_candidate_id)!;
     await clientQuery(
       ctx.client,
       `insert into public.research_organization_candidate (
@@ -373,7 +396,7 @@ async function replaceOrganizationCandidates(
          $12, $13, $14, $15, $16, $17, $18::date, $19, $20, $21, $22, $23::uuid[]
        )`,
       [
-        candidate.organization_candidate_id,
+        candidateId,
         analysisId,
         ctx.videoId,
         candidate.canonical_name,
@@ -412,7 +435,24 @@ async function replaceOrganizationSources(
   payload: OrganizationSourcePayload[],
 ): Promise<HandlerResult> {
   requireAnalysisId(ctx, "replace_organization_sources");
-  const candidateIds = [...new Set(payload.map((source) => source.organization_candidate_id))];
+  const candidateIdFor = (id: string) => ctx.organizationCandidateIdMap?.get(id);
+  // Candidate replacement always precedes source replacement. Ignore orphan
+  // source rows rather than allowing one fabricated placeholder UUID to roll
+  // back an otherwise valid packet. The shared review policy evaluates source
+  // minimums after applying this same parent filter.
+  const applicable = payload.filter((source) => candidateIdFor(source.organization_candidate_id));
+  const candidateIds = [...new Set(applicable.map((source) => candidateIdFor(source.organization_candidate_id)!))];
+  const requestedSourceIds = applicable.map((source) => source.organization_source_id);
+  const sourceCollisions = requestedSourceIds.length > 0
+    ? await clientQuery<{ organization_source_id: string }>(
+        ctx.client,
+        `select organization_source_id
+           from public.research_organization_source
+          where organization_source_id = any($1::uuid[])`,
+        [requestedSourceIds],
+      )
+    : [];
+  const collidingSourceIds = new Set(sourceCollisions.map((row) => row.organization_source_id));
   if (candidateIds.length > 0) {
     await clientQuery(
       ctx.client,
@@ -421,8 +461,12 @@ async function replaceOrganizationSources(
       [candidateIds],
     );
   }
-  for (const source of payload) {
+  for (const source of applicable) {
     const normalizedUrl = normalizeOfficialUrl(source.url);
+    const candidateId = candidateIdFor(source.organization_candidate_id)!;
+    const sourceId = collidingSourceIds.has(source.organization_source_id)
+      ? stableUuid(`pre-research:${ctx.runId}:organization-source:${candidateId}:${normalizedUrl}`)
+      : source.organization_source_id;
     await clientQuery(
       ctx.client,
       `insert into public.research_organization_source (
@@ -435,8 +479,8 @@ async function replaceOrganizationSources(
          $14::public.research_verification_status, $15, $16
        )`,
       [
-        source.organization_source_id,
-        source.organization_candidate_id,
+        sourceId,
+        candidateId,
         source.source_rank,
         source.source_role,
         source.authority_tier,
@@ -456,7 +500,7 @@ async function replaceOrganizationSources(
   }
   return {
     affectedTable: "research_organization_source",
-    affectedKey: String(payload.length),
+    affectedKey: String(applicable.length),
   };
 }
 
@@ -549,11 +593,25 @@ async function recordWebSearchEvents(
   for (const event of payload) {
     await clientQuery(
       ctx.client,
-      `insert into public.research_web_search_event (
+      `with lock as materialized (
+         select pg_advisory_xact_lock(
+           hashtextextended('pre-research-web-search:' || $1::text || ':' || $2::text, 0)
+         )
+       ), state as materialized (
+         select
+           count(existing.search_event_id)::int as event_count,
+           coalesce(bool_or(existing.query = $3), false) as duplicate
+         from lock
+         left join public.research_web_search_event existing
+           on existing.run_id = $1::uuid
+          and existing.subagent = $2
+       )
+       insert into public.research_web_search_event (
          run_id, subagent, query, provider, searched_at, result_urls, selected_urls, search_purpose
-       ) values (
-         $1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8
-       )`,
+       )
+       select $1::uuid, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8
+       from state
+       where not duplicate and event_count < $9`,
       [
         ctx.runId,
         event.subagent,
@@ -563,6 +621,7 @@ async function recordWebSearchEvents(
         json(event.result_urls),
         json(event.selected_urls),
         event.search_purpose,
+        event.subagent === "source_verifier" ? 2 : 3,
       ],
     );
   }

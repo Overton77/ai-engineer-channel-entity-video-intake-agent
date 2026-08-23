@@ -2,6 +2,7 @@ import { defineDynamic, defineTool } from "eve/tools";
 import { z } from "zod";
 import {
   curriculumSignalsSchema,
+  filterKnownEvidenceIds,
   organizationResearchSchema,
   runManifestSchema,
   sourceVerificationSchema,
@@ -151,6 +152,36 @@ export default defineDynamic({
           research_as_of: manifest.research_as_of,
         }
       : null;
+    const knownEvidenceIds = new Set(
+      prior.transcript_analysis?.evidence_anchors.map((anchor) => anchor.evidence_id) ?? [],
+    );
+    const sanitizedOrganizationResearch = input.stage === "organization_research"
+      ? {
+          ...input.organization_research,
+          candidates: input.organization_research.candidates.map((candidate) => ({
+            ...candidate,
+            evidence_ids: filterKnownEvidenceIds(candidate.evidence_ids, knownEvidenceIds),
+          })),
+          featured_implementation: input.organization_research.featured_implementation
+            ? {
+                ...input.organization_research.featured_implementation,
+                evidence_ids: filterKnownEvidenceIds(
+                  input.organization_research.featured_implementation.evidence_ids,
+                  knownEvidenceIds,
+                ),
+              }
+            : null,
+          speaker_employer: input.organization_research.speaker_employer
+            ? {
+                ...input.organization_research.speaker_employer,
+                evidence_ids: filterKnownEvidenceIds(
+                  input.organization_research.speaker_employer.evidence_ids,
+                  knownEvidenceIds,
+                ),
+              }
+            : null,
+        }
+      : null;
     const additions: Partial<ResearchPhasePacket> =
       input.stage === "transcript_taxonomy"
         ? {
@@ -169,7 +200,7 @@ export default defineDynamic({
           : input.stage === "organization_research"
             ? {
                 organization_research: {
-                  ...input.organization_research,
+                  ...sanitizedOrganizationResearch!,
                   ...immutableIdentity!,
                   video_published_at: manifest!.video_published_at,
                 },

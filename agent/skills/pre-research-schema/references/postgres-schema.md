@@ -26,7 +26,9 @@ Temporal status (contract/check, not a Postgres enum): current, changed_since_pu
 
 ## Source table
 
-`research_starter_videos(video_id pk, title, description, published_at, channel_*, duration*, url, transcript_status, transcript_bucket, transcript_path, transcript_language, transcript_char_count, transcript_text, metadata, ...)`
+`research_starter_videos(video_id pk, title, description, published_at, channel_*, duration*, url, transcript_status, transcript_bucket, transcript_path, transcript_language, transcript_char_count, transcript_text, pre_research_complete, metadata, ...)`
+
+`pre_research_complete` is set only by the deterministic executor after successful intent application, execution-receipt registration, and final pipeline-state projection. It defaults to `false`.
 
 Eligible claim rows: `transcript_status = 'stored'`, non-empty `transcript_text`, `transcript_bucket = 'ai-engineer-transcripts'`, matching `storage.objects` row, and `duration_seconds` in `(0, 5400)`.
 

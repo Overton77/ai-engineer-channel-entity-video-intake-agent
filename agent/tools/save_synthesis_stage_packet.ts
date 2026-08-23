@@ -9,10 +9,15 @@ import {
 import {
   computeIntentIdempotencyKey,
   ingestionIntentSchema,
+  initialSummaryContentSchema,
   technologyFamilySchema,
   type IngestionIntent,
 } from "../../contracts/ingestion-intent";
-import { validateAuthoritativeSourceMinimum } from "../../contracts/organization-invariants";
+import { automaticReviewReasons } from "../../contracts/review-policy";
+import {
+  mergeDuplicateOrganizationSources,
+  normalizeOrganizationSourceRanks,
+} from "../../contracts/organization-invariants";
 import {
   initialSummarySchema,
   organizationProfileContentSchema,
@@ -41,6 +46,7 @@ import {
 } from "../lib/artifact-storage";
 import { query } from "../lib/postgres";
 import { normalizeApplicationDomainAssignments } from "../../lib/application-domain";
+import { stableUuid } from "../../lib/stable-uuid";
 import {
   assertRunMatchesPacket,
   assertSynthesisPhaseAccess,
@@ -58,17 +64,121 @@ const stageSchemas = {
   ingestion_intent: ingestionIntentSchema,
 } as const;
 
-const technologyStageInputSchema = z
+const initialSummaryStageInputSchema = initialSummaryContentSchema.extend({ run_id: z.uuid() });
+
+// GLM can serialize a top-level JSON null tool argument as the literal string
+// "null" when the generated provider schema contains a nullable anyOf. Accept
+// only that exact sentinel at the model-facing boundary, then normalize it
+// before the strict immutable packet schema runs.
+export function acceptModelNullString<T extends z.ZodTypeAny>(schema: T) {
+  return z.union([schema, z.literal("null")]).transform((value) => (
+    value === "null" ? null : value
+  ));
+}
+
+// The same provider occasionally serializes a complete top-level object tool
+// argument as a JSON string. Keep this compatibility at the model-facing tool
+// boundary: the decoded value must still pass the original strict schema, so
+// arbitrary strings and malformed/invalid JSON cannot enter packet storage.
+export function acceptModelJsonObjectString<T extends z.ZodTypeAny>(schema: T) {
+  return z.union([schema, z.string()]).transform((value, context) => {
+    if (typeof value !== "string") return value;
+    let decoded: unknown;
+    try {
+      decoded = JSON.parse(value);
+    } catch {
+      context.addIssue({
+        code: "custom",
+        message: "Expected a valid JSON object or null sentinel",
+      });
+      return z.NEVER;
+    }
+    const parsed = schema.safeParse(decoded);
+    if (!parsed.success) {
+      context.addIssue({
+        code: "custom",
+        message: `Decoded JSON tool argument failed validation: ${z.prettifyError(parsed.error)}`,
+      });
+      return z.NEVER;
+    }
+    return parsed.data;
+  });
+}
+
+export const technologyStageInputSchema = z
   .object({
     run_id: z.uuid(),
     families: z.array(technologyFamilySchema).max(4),
-    no_main_technology_reason: z.string().min(1).nullable(),
+    no_main_technology_reason: acceptModelNullString(z.string().min(1).nullable()),
   })
   .refine((value) => value.families.length > 0 || value.no_main_technology_reason !== null, {
     message: "no_main_technology_reason is required when families is empty",
   });
 
-const organizationStageInputSchema = organizationProfileContentSchema.extend({ run_id: z.uuid() });
+export const organizationStageInputSchema = organizationProfileContentSchema.extend({
+  run_id: z.uuid(),
+  primary_featured_organization: acceptModelJsonObjectString(
+    organizationProfileContentSchema.shape.primary_featured_organization,
+  ),
+  parent_organization: acceptModelJsonObjectString(
+    organizationProfileContentSchema.shape.parent_organization,
+  ),
+  speaker_employer: acceptModelJsonObjectString(
+    organizationProfileContentSchema.shape.speaker_employer,
+  ),
+  featured_implementation: acceptModelJsonObjectString(
+    organizationProfileContentSchema.shape.featured_implementation,
+  ),
+  no_organization_reason: acceptModelNullString(
+    organizationProfileContentSchema.shape.no_organization_reason,
+  ),
+});
+
+type EffectiveOrganizationProfileFields = Pick<
+  OrganizationProfile,
+  | "primary_featured_organization"
+  | "other_organizations"
+  | "primary_domain_code"
+  | "secondary_domain_codes"
+  | "no_organization_reason"
+  | "review_reasons"
+  | "unresolved_conflicts"
+>;
+
+const providerFrameworkLimitationPattern = /\bframework (?:serialization )?limitation\b/i;
+
+/**
+ * Recover the narrow legacy shape produced before stringified top-level object
+ * arguments were decoded. Only a unique candidate that already declares both
+ * primary status and rank one can be promoted. Genuine organization-less or
+ * ambiguous profiles remain unchanged and therefore remain review-blocked.
+ */
+export function effectiveOrganizationProfile<T extends EffectiveOrganizationProfileFields>(
+  profile: T,
+): T {
+  if (profile.primary_featured_organization) return profile;
+  const promotable = profile.other_organizations.filter(
+    (candidate) => candidate.is_primary_featured && candidate.featured_rank === 1,
+  );
+  if (promotable.length !== 1) return profile;
+  const primary = promotable[0];
+  return {
+    ...profile,
+    primary_featured_organization: primary,
+    other_organizations: profile.other_organizations.filter(
+      (candidate) => candidate.organization_candidate_id !== primary.organization_candidate_id,
+    ),
+    primary_domain_code: primary.primary_domain_code,
+    secondary_domain_codes: primary.secondary_domain_codes,
+    no_organization_reason: null,
+    review_reasons: profile.review_reasons.filter(
+      (reason) => !providerFrameworkLimitationPattern.test(reason),
+    ),
+    unresolved_conflicts: profile.unresolved_conflicts.filter(
+      (conflict) => !providerFrameworkLimitationPattern.test(conflict),
+    ),
+  };
+}
 
 const ingestionStageInputSchema = z.object({ run_id: z.uuid() });
 
@@ -96,6 +206,55 @@ function normalizedUrl(raw: string): string {
   return url.toString();
 }
 
+function stampOrganizationIds(runId: string, raw: Record<string, unknown>): Record<string, unknown> {
+  const primary = raw.primary_featured_organization as Record<string, unknown> | null | undefined;
+  const others = Array.isArray(raw.other_organizations)
+    ? (raw.other_organizations as Record<string, unknown>[])
+    : [];
+  const candidates = primary ? [primary, ...others] : others;
+  const idMap = new Map<string, string>();
+  const stampedCandidates = candidates.map((candidate) => {
+    const oldId = String(candidate.organization_candidate_id ?? "");
+    const identity = String(candidate.normalized_name ?? candidate.canonical_name ?? oldId)
+      .trim()
+      .toLowerCase();
+    const newId = stableUuid(`pre-research:${runId}:organization:${identity}`);
+    if (oldId) idMap.set(oldId, newId);
+    return { ...candidate, organization_candidate_id: newId };
+  });
+  const stampedSources = Array.isArray(raw.sources)
+    ? (raw.sources as Record<string, unknown>[]).flatMap((source) => {
+        const oldCandidateId = String(source.organization_candidate_id ?? "");
+        const candidateId = idMap.get(oldCandidateId);
+        // A source cannot be persisted without a candidate parent. Model-
+        // authored placeholder IDs that do not name any profile candidate are
+        // unusable evidence rows; omit them before the immutable artifact is
+        // validated and committed.
+        if (!candidateId) return [];
+        const sourceIdentity = String(source.normalized_url ?? source.url ?? source.organization_source_id ?? "")
+          .trim()
+          .toLowerCase();
+        const canonicalUrl = normalizedUrl(String(source.url ?? source.normalized_url ?? ""));
+        return [{
+          ...source,
+          organization_candidate_id: candidateId,
+          normalized_url: canonicalUrl,
+          organization_source_id: stableUuid(
+            `pre-research:${runId}:organization-source:${candidateId}:${canonicalUrl || sourceIdentity}`,
+          ),
+        }];
+      })
+    : raw.sources;
+  return {
+    ...raw,
+    primary_featured_organization: primary ? stampedCandidates[0] : null,
+    other_organizations: primary ? stampedCandidates.slice(1) : stampedCandidates,
+    sources: Array.isArray(stampedSources)
+      ? mergeDuplicateOrganizationSources(stampedSources as never[])
+      : stampedSources,
+  };
+}
+
 function referencedEvidenceIds(value: unknown, target = new Set<string>()): Set<string> {
   if (Array.isArray(value)) {
     for (const item of value) referencedEvidenceIds(item, target);
@@ -118,7 +277,7 @@ function buildIngestionIntent(
   const transcript = research.transcript_analysis;
   const taxonomy = research.taxonomy_classification;
   const curriculum = research.curriculum_signals;
-  const profile = prior.organization_profile;
+  const profile = effectiveOrganizationProfile(prior.organization_profile);
   const now = research.run_manifest.claimed_at;
   const anchors: Array<Record<string, unknown>> = transcript.evidence_anchors.map((anchor) => ({
     evidence_id: anchor.evidence_id,
@@ -285,7 +444,12 @@ function buildIngestionIntent(
         ? [profile.primary_featured_organization, ...profile.other_organizations]
         : [],
     },
-    { kind: "replace_organization_sources", payload: profile.sources },
+    {
+      kind: "replace_organization_sources",
+      payload: normalizeOrganizationSourceRanks(
+        mergeDuplicateOrganizationSources(profile.sources),
+      ),
+    },
     { kind: "upsert_resource_candidates", payload: resources },
     { kind: "upsert_entity_candidates", payload: entities },
     { kind: "record_web_search_events", payload: searches },
@@ -315,31 +479,10 @@ function buildIngestionIntent(
 }
 
 function synthesisReviewReasons(packet: PreResearchPacket): string[] {
-  const reasons: string[] = [];
-  const analysisOp = packet.ingestion_intent.operations.find(
-    (operation) => operation.kind === "create_video_analysis",
-  );
-  if (
-    analysisOp?.kind === "create_video_analysis" &&
-    analysisOp.payload.overall_confidence < 0.7
-  ) {
-    reasons.push("overall_confidence_below_0.70");
-  }
-
-  const profile = packet.organization_profile;
-  if (profile.primary_domain_code === "other_unknown" || !profile.primary_featured_organization) {
-    reasons.push("primary_organization_domain_other_unknown");
-  } else {
-    const sourceCheck = validateAuthoritativeSourceMinimum(
-      profile.sources.filter(
-        (source) =>
-          source.organization_candidate_id ===
-          profile.primary_featured_organization?.organization_candidate_id,
-      ),
-    );
-    if (!sourceCheck.ok) reasons.push("authoritative_source_minimum_failed");
-  }
-  return [...new Set(reasons)];
+  return automaticReviewReasons({
+    intent: packet.ingestion_intent,
+    profile: effectiveOrganizationProfile(packet.organization_profile),
+  });
 }
 
 function artifactIdentity(
@@ -497,7 +640,9 @@ export default defineDynamic({
           ? organizationStageInputSchema
           : stage === "ingestion_intent"
             ? ingestionStageInputSchema
-            : stageSchemas[stage]) as z.ZodTypeAny;
+            : stage === "initial_summary"
+              ? initialSummaryStageInputSchema
+              : stageSchemas[stage]) as z.ZodTypeAny;
       return defineTool({
         description:
           stage === "ingestion_intent"
@@ -510,7 +655,18 @@ export default defineDynamic({
           const run = await loadPreResearchRun(rawRunId);
           assertSynthesisPhaseAccess(run, ctx.session.id);
           let value: SynthesisArtifacts[SynthesisStageName];
-          if (stage === "technology_library_summary") {
+          if (stage === "initial_summary") {
+            const { packet: research } = await loadRegisteredResearchPacket(run.run_id);
+            value = initialSummarySchema.parse({
+              ...parsed,
+              schema_version: PACKET_SCHEMA_VERSION,
+              video_id: run.video_id,
+              transcript_sha256: run.transcript_sha256,
+              research_as_of: research.run_manifest.research_as_of,
+              video_published_at: research.run_manifest.video_published_at,
+              generated_at: new Date().toISOString(),
+            });
+          } else if (stage === "technology_library_summary") {
             const { packet: research } = await loadRegisteredResearchPacket(run.run_id);
             value = technologyLibrarySummarySchema.parse({
               schema_version: PACKET_SCHEMA_VERSION,
@@ -526,7 +682,7 @@ export default defineDynamic({
           } else if (stage === "organization_profile") {
             const { packet: research } = await loadRegisteredResearchPacket(run.run_id);
             value = organizationProfileSchema.parse({
-              ...parsed,
+              ...stampOrganizationIds(run.run_id, parsed),
               schema_version: PACKET_SCHEMA_VERSION,
               video_id: run.video_id,
               transcript_sha256: run.transcript_sha256,
@@ -534,7 +690,7 @@ export default defineDynamic({
               video_published_at: research.run_manifest.video_published_at,
               generated_at: new Date().toISOString(),
             });
-          } else if (stage === "ingestion_intent") {
+          } else {
             const { packet: research } = await loadRegisteredResearchPacket(run.run_id);
             const existing = await loadRegisteredSynthesisArtifacts(run.run_id);
             value = buildIngestionIntent(
@@ -545,8 +701,6 @@ export default defineDynamic({
                 "initial_summary" | "technology_library_summary" | "organization_profile"
               >,
             );
-          } else {
-            value = stageSchemas[stage].parse(parsed) as SynthesisArtifacts[SynthesisStageName];
           }
           const identity = artifactIdentity(stage, value);
           assertRunMatchesPacket(run, identity);

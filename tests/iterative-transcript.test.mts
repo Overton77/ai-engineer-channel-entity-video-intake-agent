@@ -28,6 +28,7 @@ describe("iterative transcript summarization", () => {
   it("retries transient Gateway transport and TLS-edge failures", () => {
     assert.equal(isRetryableTranscriptError(new Error("read ECONNRESET")), true);
     assert.equal(isRetryableTranscriptError(new Error("certificate has expired")), true);
+    assert.equal(isRetryableTranscriptError(new Error("TRANSCRIPT_SUMMARY_EMPTY")), true);
     assert.equal(isRetryableTranscriptError(new Error("TRANSCRIPT_HASH_MISMATCH")), false);
   });
 
@@ -58,6 +59,45 @@ describe("iterative transcript summarization", () => {
     assert.equal(seenPrevious[1]?.initial_summary, summary("chunk-0").initial_summary);
     assert.equal(seenPrevious[2]?.initial_summary, summary("chunk-1").initial_summary);
     assert.equal(result.summary.initial_summary, summary("chunk-2").initial_summary);
+  });
+
+  it("resumes after the last durable section checkpoint", async () => {
+    const reduced: number[] = [];
+    const checkpointCounts: number[] = [];
+    const result = await summarizeTranscriptIteratively({
+      transcript: "x".repeat(4_500),
+      chunkCharacters: 2_000,
+      completedChunkCount: 1,
+      initialSummary: summary("chunk-0"),
+      reducer: async ({ chunk, previous }) => {
+        reduced.push(chunk.index);
+        assert.ok(previous);
+        return summary(`chunk-${chunk.index}`);
+      },
+      onChunkComplete: async ({ completedChunkCount }) => {
+        checkpointCounts.push(completedChunkCount);
+      },
+    });
+    assert.deepEqual(reduced, [1, 2]);
+    assert.deepEqual(checkpointCounts, [2, 3]);
+    assert.equal(result.summary.initial_summary, summary("chunk-2").initial_summary);
+  });
+
+  it("does not start another reducer section after the controller deadline", async () => {
+    let reducerCalls = 0;
+    await assert.rejects(
+      summarizeTranscriptIteratively({
+        transcript: "x".repeat(4_500),
+        chunkCharacters: 2_000,
+        deadlineAtMs: Date.now() - 1,
+        reducer: async ({ chunk }) => {
+          reducerCalls += 1;
+          return summary(`chunk-${chunk.index}`);
+        },
+      }),
+      /CONTROLLER_INVOCATION_BUDGET_EXHAUSTED/,
+    );
+    assert.equal(reducerCalls, 0);
   });
 
   it("materializes a valid packet transcript analysis without raw transcript text", () => {

@@ -1,0 +1,42 @@
+id: "eve-load-compiled-manifest-stale-workflow-state"
+created: "2026-08-22T21:45:00-04:00"
+updated: "2026-08-22T21:45:00-04:00"
+
+error:
+  type: "configuration"
+  category: "LoadCompiledManifestError"
+  language: "nodejs"
+  framework: "eve-0.38.3"
+  pattern: "Compiled manifest is unavailable without an app root or bundled compiled artifacts"
+  context: "eve eval local dev host while terminal session.completed events from stale local workflow state settle"
+
+diagnosis:
+  root_cause: "Generated .eve/.workflow-data retained old terminal-session work that was replayed in a fresh temporary eval dev host without the original compiled-artifact context."
+  factors:
+    - "The packet-only eval itself created no agent turn and exited successfully."
+    - "The error appeared after the eval summary while old workflow session IDs completed."
+    - "The project already ships a path-guarded workflow-state pruning command for this Eve/Windows condition."
+
+solution:
+  immediate:
+    - "Confirm no project Eve/Node process is running."
+    - "Run npm run maintenance:prune-eve-runtime from the project root."
+  proper:
+    - "Keep immutable packets and eval reports; prune only generated .eve/.workflow-data."
+    - "Rerun the same eve eval and confirm the post-run manifest error is absent."
+  code_change: null
+
+verification:
+  - "The guarded script removed 39,939 generated files (0.511 GiB) and recreated .eve/.workflow-data/streams."
+  - "eve eval packets/golden/0004 --skip-report completed with the expected scores and no LoadCompiledManifestError."
+
+prevention:
+  - "Stop local Eve before pruning."
+  - "Use the existing guarded maintenance script after long local Eve runs on Windows."
+  - "Never delete outputs/pre-research, Supabase data, or .eve/evals reports to address this signature."
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-22T21:45:00-04:00"
+  success_rate: 1.0
+  tags: ["nodejs", "eve", "evals", "windows", "stale-workflow-state"]

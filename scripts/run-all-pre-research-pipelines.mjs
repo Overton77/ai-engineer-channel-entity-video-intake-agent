@@ -34,6 +34,7 @@ const { isRetryableTranscriptError } = await import("../agent/lib/video-context.
 
 const startedAt = new Date().toISOString();
 const completed = [];
+const deferredReview = [];
 let exhausted = false;
 let transientRetryCount = 0;
 
@@ -98,6 +99,16 @@ while (maxVideos === 0 || completed.length < maxVideos) {
     apply_status: result.apply_status ?? null,
   });
 
+  if (result.phase === "review_required") {
+    deferredReview.push({
+      video_id: result.video_id,
+      run_id: result.run_id,
+      reason: result.error ?? "review_required",
+    });
+    console.error(JSON.stringify({ event: "video_deferred_for_review", ...deferredReview.at(-1) }));
+    continue;
+  }
+
   if (result.error || !result.finished) {
     console.error(
       JSON.stringify({
@@ -120,6 +131,8 @@ console.log(
       finished_at: new Date().toISOString(),
       processed_count: completed.length,
       exhausted,
+      deferred_review_count: deferredReview.length,
+      deferred_review: deferredReview,
       completed,
     },
     null,

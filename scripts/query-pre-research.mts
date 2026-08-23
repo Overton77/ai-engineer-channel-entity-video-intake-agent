@@ -242,11 +242,12 @@ async function queryPreResearch(options: CliOptions) {
     transcript_language: string | null;
     transcript_char_count: number | null;
     transcript_fetched_at: Date | string | null;
+    pre_research_complete: boolean;
   }>(
     `select
        video_id, title, description, published_at, channel_id, channel_handle, channel_title,
        duration, duration_seconds, url, transcript_status, transcript_bucket, transcript_path,
-       transcript_language, transcript_char_count, transcript_fetched_at
+       transcript_language, transcript_char_count, transcript_fetched_at, pre_research_complete
      from public.research_starter_videos
      where video_id = $1`,
     [options.videoId],
@@ -546,7 +547,7 @@ async function queryPreResearch(options: CliOptions) {
           includeBody: options.includeTranscript,
         })
       : Promise.resolve(null),
-    listObjectsRecursive({ bucket: INTENT_BUCKET, prefix: `pre-research/v2/${options.videoId}` }).catch(
+    listObjectsRecursive({ bucket: INTENT_BUCKET, prefix: packetPrefix }).catch(
       (error: unknown) => ({ error: error instanceof Error ? error.message : String(error) }),
     ),
     listObjectsRecursive({
@@ -744,6 +745,7 @@ function printReport(payload: Awaited<ReturnType<typeof queryPreResearch>>): voi
   line("transcript_status", payload.video.transcript_status);
   line("transcript_path", `${payload.video.transcript_bucket}/${payload.video.transcript_path}`);
   line("transcript_chars", payload.video.transcript_char_count);
+  line("pre_research_complete", payload.video.pre_research_complete);
 
   section("Pipeline");
   line("eligibility", payload.video_state?.eligibility_status);

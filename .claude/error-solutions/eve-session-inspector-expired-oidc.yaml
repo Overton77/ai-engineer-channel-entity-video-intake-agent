@@ -1,0 +1,39 @@
+id: "eve-session-inspector-expired-oidc"
+created: "2026-08-23T06:11:00Z"
+updated: "2026-08-23T06:11:00Z"
+
+error:
+  type: "configuration"
+  category: "Authentication"
+  language: "nodejs"
+  pattern: "eve_production_auth_not_configured while a local operator script inspects a deployed Eve session"
+  context: "The controller refreshed Vercel OIDC dynamically, but local inspect/recovery scripts used only a static VERCEL_OIDC_TOKEN from .env.local."
+
+diagnosis:
+  root_cause: "Short-lived Eve/Vercel OIDC credentials expired and the operator scripts did not use @vercel/oidc's authenticated CLI refresh path."
+  factors:
+    - "inspect-eve-session.mjs conditionally omitted auth when the stale token was absent"
+    - "the production Eve channel correctly rejected an unauthenticated stream request"
+    - "the controller already contained the correct token callback, but scripts had duplicated older client construction"
+
+solution:
+  immediate:
+    - "Create the Eve client with a getVercelOidcToken callback for non-local hosts."
+  proper:
+    - "Centralize local/remote client construction in scripts/eve-client.mjs."
+    - "Reuse the helper from inspect-eve-session.mjs and both guarded recovery scripts."
+  code_change: "scripts/eve-client.mjs plus imports in inspect-eve-session.mjs, recover-research-session.mjs, and recover-synthesis-session.mjs"
+
+verification:
+  - "The same read-only inspector command successfully streamed the deployed Event-Sourced Systems session."
+  - "The result exposed session.waiting and the model's nullable-field self-correction attempts without resetting or cancelling the session."
+
+prevention:
+  - "Do not read VERCEL_OIDC_TOKEN directly in new production Eve operator scripts."
+  - "Use createAuthenticatedEveClient for local-or-deployed session access."
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-23T06:11:00Z"
+  success_rate: 1.0
+  tags: ["eve", "vercel", "oidc", "operator-tooling", "nodejs"]

@@ -206,6 +206,7 @@ export const webContextV1Schema = z.object({
 
 export const webContextSchema = webContextV1Schema.extend({
   schema_version: z.literal(PACKET_SCHEMA_VERSION),
+  searches: webContextV1Schema.shape.searches.max(3),
   video_id: z.string().min(1),
   transcript_sha256: sha256Schema,
   research_as_of: z.iso.date(),
@@ -324,7 +325,7 @@ export const organizationResearchSchema = packetIdentitySchema.extend({
       purpose: z.string().min(1),
       result_urls: z.array(z.url()),
     }),
-  ),
+  ).max(3),
   unresolved_conflicts: z.array(z.string().min(1)),
   review_required: z.boolean(),
   review_reasons: z.array(z.string().min(1)),
@@ -488,6 +489,23 @@ export type PacketCrossFileResult = {
   errors: string[];
 };
 
+export function filterKnownEvidenceIds(
+  evidenceIds: readonly string[],
+  knownEvidenceIds: ReadonlySet<string>,
+): string[] {
+  return [...new Set(evidenceIds.filter((evidenceId) => knownEvidenceIds.has(evidenceId)))];
+}
+
+export function sameNullableInstant(
+  left: string | null,
+  right: string | null,
+): boolean {
+  if (left === null || right === null) return left === right;
+  const leftTime = Date.parse(left);
+  const rightTime = Date.parse(right);
+  return Number.isFinite(leftTime) && Number.isFinite(rightTime) && leftTime === rightTime;
+}
+
 type IdentityFields = {
   run_id?: string;
   video_id?: string;
@@ -551,7 +569,7 @@ function checkIdentity(
   }
   if (
     actual.video_published_at !== undefined &&
-    actual.video_published_at !== expected.video_published_at
+    !sameNullableInstant(actual.video_published_at, expected.video_published_at)
   ) {
     errors.push(`${label}.video_published_at does not match run_manifest`);
   }
@@ -729,8 +747,14 @@ export function validatePreResearchPacketCrossFile(packet: PreResearchPacket): P
     }
     if (sourcesOp && sourcesOp.kind === "replace_organization_sources") {
       const intentSourceIds = new Set(sourcesOp.payload.map((source) => source.organization_source_id));
+      const intentSourceKeys = new Set(
+        sourcesOp.payload.map(
+          (source) => `${source.organization_candidate_id}\u0000${source.normalized_url}`,
+        ),
+      );
       for (const source of profile.sources) {
-        if (!intentSourceIds.has(source.organization_source_id)) {
+        const sourceKey = `${source.organization_candidate_id}\u0000${source.normalized_url}`;
+        if (!intentSourceIds.has(source.organization_source_id) && !intentSourceKeys.has(sourceKey)) {
           errors.push(
             `organization_profile source ${source.organization_source_id} is missing from replace_organization_sources`,
           );

@@ -20,6 +20,8 @@ The retired prompt-only cron was removed; backlog processing is owned by the ser
 
 v2 contract and slices: [implementation/](./implementation/) and [implementation/goal/PRE_RESEARCH_V2_IMPLEMENTATION_PLAN.md](./implementation/goal/PRE_RESEARCH_V2_IMPLEMENTATION_PLAN.md). The original v1 spec remains in [IMPLEMENTATION.md](./IMPLEMENTATION.md).
 
+Evaluation system: [evals/README.md](./evals/README.md) and [implementation/goal/EVALUATION_SYSTEM.md](./implementation/goal/EVALUATION_SYSTEM.md). It includes Eve-native packet and trace evals, an eight-case production golden set, semantic judge cases, deterministic offline reports, and a paired-bootstrap promotion gate for implementation optimizers.
+
 ## Run
 
 Handoff for another agent: [HANDOFF.md](./HANDOFF.md). Runner skill: `.cursor/skills/run-pre-research/SKILL.md`.
@@ -44,7 +46,7 @@ Use the built `eve start` server for pipeline and batch work. On Windows, long `
 
 Do not set `EXA_API_KEY`. `web_search` uses Exa through AI Gateway.
 
-`--video-id` cannot bypass qualification. Claim is 6-arg. Use `npm run list:eligible` for the current oldest candidate. Set `PRE_RESEARCH_TRANSCRIPT_CHUNK_CHARACTERS` only to override the default 12,000-character iterative-summary section size (minimum 2,000). `PRE_RESEARCH_MIN_FREE_GB` controls the local disk guard (default 1.5 GiB).
+`--video-id` cannot bypass qualification. Claim is 6-arg. Use `npm run list:eligible` for the current oldest candidate. Set `PRE_RESEARCH_TRANSCRIPT_CHUNK_CHARACTERS` only to override the default 12,000-character iterative-summary section size (minimum 2,000). `PRE_RESEARCH_MIN_FREE_GB` controls the local disk guard (default 1.5 GiB). Production Cron retries parked runs with a default ten-minute fairness cooldown (`PRE_RESEARCH_SCHEDULE_RETRY_COOLDOWN_MINUTES`, 5–60), so one provider-stuck video cannot monopolize every serial tick. Its controller also has an absolute four-minute invocation budget (`PRE_RESEARCH_SCHEDULE_INVOCATION_BUDGET_MS`, 60,000–270,000 ms), leaving cleanup headroom below Vercel's 300-second limit.
 
 The v1 runner `scripts/run-pre-research-session.mjs` still exists. It is not the primary path.
 

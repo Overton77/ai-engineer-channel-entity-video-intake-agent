@@ -1,16 +1,12 @@
-import { Client } from "eve/client";
 import { loadEnv } from "./load-env.mjs";
+import { createAuthenticatedEveClient } from "./eve-client.mjs";
 
 loadEnv();
 const [runId, sessionId, host = process.env.EVE_URL] = process.argv.slice(2);
 if (!runId || !sessionId || !host) {
   throw new Error("usage: recover-synthesis-session <run-id> <session-id> <eve-host>");
 }
-const token = process.env.VERCEL_OIDC_TOKEN;
-const client = new Client({
-  host,
-  ...(token ? { auth: { vercelOidc: { token } }, redirect: "error" } : {}),
-});
+const client = createAuthenticatedEveClient(host);
 try {
   await client.sessions.attach(sessionId).reset({
     reason: "Retire stale synthesis command queue after durable checkpoint recovery",

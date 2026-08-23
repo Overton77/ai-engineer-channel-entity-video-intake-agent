@@ -1,0 +1,34 @@
+id: "functions-exec-js-escaped-quote"
+created: "2026-08-23T17:48:00Z"
+updated: "2026-08-23T17:48:00Z"
+
+error:
+  type: "syntax"
+  category: "SyntaxError"
+  language: "javascript"
+  pattern: "Invalid or unexpected token in functions.exec orchestration source"
+  context: "A JavaScript string delimiter was unnecessarily backslash-escaped in raw functions.exec source."
+
+diagnosis:
+  root_cause: "The source used out.join(\\\"...\\\") even though functions.exec accepts raw JavaScript rather than a JSON-encoded JavaScript string."
+  factors:
+    - "Confused raw JavaScript tool input with JSON string escaping"
+
+solution:
+  immediate:
+    - "Replace the escaped delimiter with a normal JavaScript string literal."
+  proper:
+    - "Write raw JavaScript directly in functions.exec and escape only inside actual JavaScript strings."
+  code_change: null
+
+verification:
+  - "Rerun the read-only checks and confirm the script evaluates successfully."
+
+prevention:
+  - "Before submitting functions.exec source, visually check join/string delimiters for JSON-style escaping."
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-23T17:48:00Z"
+  success_rate: 1.0
+  tags: ["functions-exec", "javascript", "quoting", "operator-error"]

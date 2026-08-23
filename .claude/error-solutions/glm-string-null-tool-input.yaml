@@ -1,0 +1,39 @@
+id: "glm-string-null-tool-input"
+created: "2026-08-23T06:18:00Z"
+updated: "2026-08-23T06:18:00Z"
+
+error:
+  type: "type"
+  category: "ToolInputValidation"
+  language: "typescript"
+  pattern: "GLM emits the string 'null' for a top-level nullable Eve tool argument"
+  context: "Organization-profile synthesis with Zod nullable anyOf inputs"
+
+diagnosis:
+  root_cause: "The provider serialized selected top-level JSON null arguments as the literal string 'null', which failed object-or-null validation before tool execution."
+  factors:
+    - "parent_organization and no_organization_reason are required nullable top-level tool fields"
+    - "strict packet validation correctly rejects string sentinels"
+    - "the model spent multiple turns attempting equivalent null encodings"
+
+solution:
+  immediate:
+    - "Accept only the exact model-facing sentinel 'null' in affected nullable tool inputs."
+  proper:
+    - "Transform the sentinel to real null before immutable organization-profile or technology-summary parsing."
+    - "Keep the persisted packet schemas unchanged and strict."
+  code_change: "acceptModelNullString and model-facing nullable overrides in agent/tools/save_synthesis_stage_packet.ts"
+
+verification:
+  - "Focused tests normalize string null and real null while rejecting unrelated object-field strings."
+  - "Full TypeScript, 85-test, Eve build, and Vercel production build gates passed."
+
+prevention:
+  - "Normalize provider-specific sentinels only at model-facing tool boundaries."
+  - "Do not relax immutable packet schemas to accept string null values."
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-23T06:18:00Z"
+  success_rate: 1.0
+  tags: ["glm", "eve", "zod", "tool-input", "nullable"]

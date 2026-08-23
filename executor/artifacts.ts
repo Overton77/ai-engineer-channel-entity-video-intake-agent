@@ -59,6 +59,10 @@ export async function writeHostArtifact(
   content: string | Buffer,
 ): Promise<string> {
   const outputPath = hostArtifactPath(storagePath);
+  // Vercel Functions expose the application bundle under read-only /var/task.
+  // Supabase Storage is authoritative in production; local materialization is
+  // only a workstation convenience.
+  if (process.env.VERCEL) return outputPath;
   const temporaryPath = `${outputPath}.${process.pid}.${Date.now()}.tmp`;
   await mkdir(dirname(outputPath), { recursive: true });
   await writeFile(temporaryPath, content, "utf8");

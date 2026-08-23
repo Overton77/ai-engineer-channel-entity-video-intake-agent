@@ -15,9 +15,11 @@ import {
   type ParsedIngestionIntent,
 } from "../contracts/ingestion-intent";
 import {
-  validateAuthoritativeSourceMinimum,
-  validateOrganizationCandidateSet,
-} from "../contracts/organization-invariants";
+  automaticReviewReasons,
+  isOrganizationHierarchyConflict,
+  organizationProfileHasHierarchyConflict,
+} from "../contracts/review-policy";
+export { isOrganizationHierarchyConflict, organizationProfileHasHierarchyConflict } from "../contracts/review-policy";
 import { canonicalizeJson } from "../lib/canonical-json";
 import { hashCanonicalJson, sha256Hex } from "../lib/hash";
 import {
@@ -299,52 +301,20 @@ function reviewRefusalReasons(
   run: RunRow,
   profile: {
     review_required?: boolean;
+    review_reasons?: string[];
     unresolved_conflicts?: string[];
     primary_domain_code?: string;
     primary_featured_organization?: { primary_domain_code: string } | null;
   } | null,
 ): string[] {
-  const reasons: string[] = [];
-  if (run.status === "review_required") {
-    reasons.push("run status is review_required");
-  }
-  if (profile?.review_required) {
-    reasons.push("organization profile review_required");
-  }
-  if ((profile?.unresolved_conflicts ?? []).length > 0) {
-    reasons.push("unresolved organization hierarchy conflicts");
-  }
   if (!isV2Intent(intent)) {
-    return reasons;
+    return run.status === "review_required" ? ["run status is review_required"] : [];
   }
-  const candidatesOp = intent.operations.find(
-    (operation) => operation.kind === "replace_organization_candidates",
-  );
-  const sourcesOp = intent.operations.find(
-    (operation) => operation.kind === "replace_organization_sources",
-  );
-  const candidates = candidatesOp?.kind === "replace_organization_candidates" ? candidatesOp.payload : [];
-  const sources = sourcesOp?.kind === "replace_organization_sources" ? sourcesOp.payload : [];
-  if (candidates.length > 0) {
-    const setCheck = validateOrganizationCandidateSet(candidates);
-    reasons.push(...setCheck.errors);
-    const primary = candidates.find((candidate) => candidate.is_primary_featured);
-    if (primary?.primary_domain_code === "other_unknown") {
-      reasons.push("primary organization domain is other_unknown");
-    }
-    if (primary && primary.primary_domain_code !== "other_unknown") {
-      const sourceCheck = validateAuthoritativeSourceMinimum(
-        sources.filter((source) => source.organization_candidate_id === primary.organization_candidate_id),
-      );
-      reasons.push(...sourceCheck.errors);
-    }
-  }
-  const profileDomain =
-    profile?.primary_featured_organization?.primary_domain_code ?? profile?.primary_domain_code;
-  if (profileDomain === "other_unknown") {
-    reasons.push("organization profile primary_domain_code is other_unknown");
-  }
-  return [...new Set(reasons)];
+  return automaticReviewReasons({
+    intent,
+    profile: profile as Parameters<typeof automaticReviewReasons>[0]["profile"],
+    runStatus: run.status,
+  });
 }
 
 function buildReceipt(input: {
@@ -519,6 +489,20 @@ async function markFinished(input: {
          finished_intent_id = excluded.finished_intent_id`,
       [input.videoId, input.transcriptSha256, input.runId, input.intentId],
     );
+    const completedVideos = await clientQuery<{ video_id: string }>(
+      client,
+      `update public.research_starter_videos
+          set pre_research_complete = true
+        where video_id = $1
+        returning video_id`,
+      [input.videoId],
+    );
+    if (completedVideos.length !== 1) {
+      throw new ApplyIntentError(
+        "VIDEO_NOT_FOUND",
+        `Could not mark pre-research complete for video ${input.videoId}`,
+      );
+    }
   });
 }
 
@@ -816,6 +800,7 @@ export async function applyIntent(options: ApplyIntentOptions): Promise<Executio
 
   let profile: {
     review_required?: boolean;
+    review_reasons?: string[];
     unresolved_conflicts?: string[];
     primary_domain_code?: string;
     primary_featured_organization?: { primary_domain_code: string } | null;

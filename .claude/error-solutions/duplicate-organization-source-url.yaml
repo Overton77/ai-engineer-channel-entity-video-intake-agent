@@ -1,0 +1,48 @@
+id: "pre-research-duplicate-organization-source-url"
+created: "2026-08-23T04:40:31Z"
+updated: "2026-08-23T04:40:31Z"
+
+error:
+  type: "database-contract"
+  category: "DuplicateOrganizationSource"
+  language: "typescript"
+  pattern: "one organization profile emits the same normalized URL under multiple source roles"
+  context: "pre-research v2 organization profile and deterministic intent application"
+
+diagnosis:
+  root_cause: "A single-page company root URL served as both official_homepage and official_product. Stable ID stamping correctly derived the same UUID for both rows, but the profile retained both rows even though Postgres requires one row per organization candidate and normalized URL."
+  factors:
+    - "The authoritative-source contract models one source_role per row while a public page can serve multiple evidentiary roles."
+    - "Source-rank normalization did not merge duplicate normalized URLs."
+    - "Cross-file validation compared source IDs but did not recognize a merged URL-equivalent row."
+
+solution:
+  immediate:
+    - "Merge sources by organization_candidate_id plus normalized_url before organization-profile commit and deterministic intent construction."
+  proper:
+    - "Prefer official_homepage for a duplicate root page, union all support claims, preserve required-core status, then assign contiguous ranks."
+    - "Allow a verified authoritative homepage to satisfy technical evidence only when its support claims explicitly name a product, platform, system, or implementation."
+    - "Accept URL-equivalent merged sources in packet cross-file validation."
+  code_change:
+    - "contracts/organization-invariants.ts"
+    - "agent/tools/save_synthesis_stage_packet.ts"
+    - "contracts/pre-research-packet.ts"
+    - "controller/pre-research-pipeline.ts"
+
+verification:
+  - "TypeScript passed."
+  - "82 tests passed across 31 suites, including duplicate root-source merging and generic-homepage rejection."
+  - "Eve build and Vercel production build passed."
+  - "Persona Engineering run dbec0613-e2b0-4cf0-a574-60641f7ecc53 applied all 12 operations and persisted five unique organization sources."
+  - "Canonical verifier retrieved all 12 packet objects with matching hashes and finished=true."
+
+prevention:
+  - "Keep source identity keyed by candidate plus normalized URL, not by model-authored role."
+  - "Keep the organization-profile prompt explicit about identity and technical evidence requirements."
+  - "Do not weaken a generic company homepage into technical evidence without implementation-specific support claims."
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-23T04:40:31Z"
+  success_rate: 1.0
+  tags: ["eve", "supabase", "postgres", "organization-source", "deduplication"]

@@ -17,14 +17,14 @@ function researchPhaseInstructions(input: {
     stage === null
       ? "Read the current controller delivery for its explicit bounded research stage and perform only that stage. Do not infer transcript_taxonomy merely because earlier artifacts appear in PRIOR_RESEARCH_CONTEXT_JSON."
       : stage === "transcript_taxonomy"
-      ? `This turn is ONLY stage \`transcript_taxonomy\`. Use PRECOMPUTED_VIDEO_CONTEXT_JSON, call \`load_taxonomy\` once, prepare 00/10/20, then call \`save_research_stage_packet\` with stage \`transcript_taxonomy\` and stop.`
+      ? `This turn is ONLY stage \`transcript_taxonomy\`. Use PRECOMPUTED_VIDEO_CONTEXT_JSON, do not call \`web_search\`, call \`load_taxonomy\` once, prepare 00/10/20, then call \`save_research_stage_packet\` with stage \`transcript_taxonomy\` and stop.`
       : stage === "web_context"
         ? `This turn is ONLY stage \`web_context\`. Use PRIOR_RESEARCH_CONTEXT_JSON. Make at most 3 high-value searches, prepare 30, call \`save_research_stage_packet\` with stage \`web_context\`, and stop.`
         : stage === "organization_research"
           ? `This turn is ONLY stage \`organization_research\`. Use PRIOR_RESEARCH_CONTEXT_JSON. Make at most 3 first-party-focused searches, prepare 35, call \`save_research_stage_packet\` with stage \`organization_research\`, and stop.`
           : stage === "source_verification"
             ? `This turn is ONLY stage \`source_verification\`. Use PRIOR_RESEARCH_CONTEXT_JSON. Make at most 2 gap-filling searches, prepare 40, call \`save_research_stage_packet\` with stage \`source_verification\`, and stop.`
-            : `This turn is ONLY stage \`curriculum\`. Use PRIOR_RESEARCH_CONTEXT_JSON, prepare 50, then call \`save_research_stage_packet\` with stage \`curriculum\` and stop.`;
+            : `This turn is ONLY stage \`curriculum\`. Use PRIOR_RESEARCH_CONTEXT_JSON, do not call \`web_search\`, prepare 50, then call \`save_research_stage_packet\` with stage \`curriculum\` and stop.`;
   return `# Current phase: research
 
 Run \`${input.run_id}\` for video \`${input.video_id}\` (status \`${input.status}\`).
@@ -50,7 +50,7 @@ Claim and session binding already happened via the controller. Do not claim anot
 2. Work in this root session only. Subagents and \`Workflow\` are intentionally disabled by default to avoid separate sessions, streams, and sandboxes. Do not attempt to call them.
 3. In transcript_taxonomy only, prepare \`00-run-manifest.json\` with \`research_as_of\`, packet schema \`2.0.0\`, transcript pointer/hash, and video publish date. Keep the returned \`transcript_analysis\` unchanged as the \`10-transcript-analysis.json\` object. No raw transcript text.
 4. Using the transcript analysis, video description, and loaded taxonomy, prepare \`20-taxonomy-classification.json\` with exactly one primary category and grounded domain/lifecycle/difficulty/form/evidence assignments.
-5. In the applicable bounded stage only, use \`web_search\` within the stated query cap and reuse PRIOR_RESEARCH_CONTEXT_JSON. Prefer first-party sources and verify the narrowest implementation-owning organization, ownership, current status, and authoritative-source minimum. After each search, call \`record_web_search_event\` with the logical stage label \`web_context_scout\`, \`organization_researcher\`, or \`source_verifier\`.
+5. In the applicable bounded stage only, use \`web_search\` within the stated query cap and reuse PRIOR_RESEARCH_CONTEXT_JSON. Prefer first-party sources and verify the narrowest implementation-owning organization, ownership, current status, and authoritative-source minimum. After each search, call \`record_web_search_event\`; the tool derives and enforces the ledger label from the active stage.
 6. Every \`evidence_ids\` value must be copied verbatim from the registered \`transcript_analysis.evidence_anchors\` supplied in current prior context. Never fabricate or reshape UUIDs; omit an unsupported optional reference.
 6. Prepare \`50-curriculum-signals.json\` from the transcript analysis and taxonomy. These are signals, not a finished course.
 7. Do not call sandbox/file tools. Call \`save_research_stage_packet\` exactly once with only the current stage objects; the tool materializes host and Supabase files. If validation fails, fix only the reported fields and retry.

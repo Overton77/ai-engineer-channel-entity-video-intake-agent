@@ -1,5 +1,5 @@
 /**
- * Durable two-session pre-research controller.
+ * Durable staged pre-research controller.
  *
  * Eve already deploys onto Vercel Workflow, so this file is plain TypeScript
  * rather than a second `use workflow` project. Crash safety comes from the
@@ -8,28 +8,57 @@
  */
 import { statfsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { Client, ClientError, type InputRequest, type InputResponse, type MessageResult } from "eve/client";
+import { getVercelOidcToken } from "@vercel/oidc";
+import {
+  Client,
+  ClientError,
+  type InputRequest,
+  type InputResponse,
+  type MessageResult,
+  type MessageStreamEvent,
+} from "eve/client";
 import {
   PACKET_SCHEMA_VERSION,
   PROMPT_BUNDLE_VERSION,
   TAXONOMY_VERSION,
 } from "../contracts/enums";
-import { applyIntent, ApplyIntentError, type ApplyIntentOptions } from "../executor/apply-intent";
+import {
+  applyIntent,
+  ApplyIntentError,
+  type ApplyIntentOptions,
+} from "../executor/apply-intent";
+import { parseIngestionIntent, type IngestionIntent } from "../contracts/ingestion-intent";
+import { organizationProfileSchema, type OrganizationProfile } from "../contracts/pre-research-packet";
+import { automaticReviewReasons } from "../contracts/review-policy";
 import {
   RESEARCH_ARTIFACT_KINDS,
   SYNTHESIS_ARTIFACT_KINDS,
+  intentBucket,
   packetStoragePrefix,
   hostArtifactPath,
   writeHostArtifact,
 } from "../executor/artifacts";
 import { query } from "../executor/postgres";
-import { downloadJsonObject, downloadStorageObject } from "../executor/storage";
+import { downloadJsonObject, downloadStorageObject, uploadStorageObject } from "../executor/storage";
 import { buildIterativeVideoContext } from "../agent/lib/video-context";
+import {
+  canResumeControllerStageSession,
+  controllerStageIdentityFromMessage,
+  controllerStageSessionSummaryFromResult,
+  type ControllerStageIdentity,
+} from "./stage-session";
 
 const MODEL_ID = "zai/glm-5.2";
 const DEFAULT_LEASE_SECONDS = 10800;
 const DEFAULT_MIN_FREE_GB = 1.5;
-const MAX_PARKED_TURN_RETRIES = 5;
+// The AI SDK already performs three provider attempts for one Eve delivery.
+// One controller retry per Cron tick avoids multiplying an upstream outage
+// while durable recovery guarantees another attempt at the next boundary.
+const MAX_PARKED_TURN_RETRIES = 1;
+const MAX_SAME_STAGE_SESSION_DELIVERIES = 18;
+const DURABLE_SESSION_TAIL_EVENTS = 64;
+const LEGACY_SESSION_DELIVERY_TAIL_EVENTS = 256;
+const DEFAULT_CONTROLLER_STAGE_WAIT_MS = 120_000;
 const RESEARCH_STAGES = [
   {
     name: "transcript_taxonomy",
@@ -74,10 +103,34 @@ function configuredMinFreeBytes(): number {
   return gib * 1024 ** 3;
 }
 
-function assertDiskHeadroom(minBytes = configuredMinFreeBytes()): void {
+function configuredControllerStageWaitMs(): number {
+  const raw = process.env.PRE_RESEARCH_CONTROLLER_STAGE_WAIT_MS;
+  if (!raw) return DEFAULT_CONTROLLER_STAGE_WAIT_MS;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < 15_000 || value > 240_000) {
+    throw new Error("PRE_RESEARCH_CONTROLLER_STAGE_WAIT_MS must be between 15000 and 240000");
+  }
+  return Math.floor(value);
+}
+
+function controllerWaitDeadline(deadlineAtMs?: number): number {
+  const stageDeadline = Date.now() + configuredControllerStageWaitMs();
+  return deadlineAtMs == null ? stageDeadline : Math.min(stageDeadline, deadlineAtMs);
+}
+
+function controllerWaitBudgetMessage(deadlineAtMs?: number): string {
+  return deadlineAtMs != null && Date.now() >= deadlineAtMs
+    ? "CONTROLLER_INVOCATION_BUDGET_EXHAUSTED: Eve remains durable and will be resumed by the next scheduler tick."
+    : "CONTROLLER_STAGE_WAIT_BUDGET_EXHAUSTED: Eve remains durable and will be resumed by the next scheduler tick.";
+}
+
+function assertDiskHeadroom(
+  host = process.env.EVE_URL,
+  minBytes = configuredMinFreeBytes(),
+): void {
   // Vercel Workflow owns the durable stream for remote agents, so the local
   // workstation's free space is unrelated to remote execution safety.
-  if (process.env.EVE_URL && !isLocalEveHost(process.env.EVE_URL)) return;
+  if (process.env.VERCEL || (host && !isLocalEveHost(host))) return;
   const free = freeDiskBytes();
   if (free < minBytes) {
     const freeGb = (free / 1024 ** 3).toFixed(1);
@@ -104,6 +157,8 @@ export type RunPreResearchPipelineOptions = {
   approved?: boolean;
   eveUrl?: string;
   leaseSeconds?: number;
+  /** Absolute controller deadline. Eve work remains durable after this time. */
+  deadlineAtMs?: number;
 };
 
 export type PipelineResult = {
@@ -146,6 +201,7 @@ type SessionRow = {
   status: string;
   phase: string;
   attempt: number;
+  result_summary: unknown | null;
 };
 
 function eveHost(explicit?: string): string {
@@ -163,12 +219,20 @@ function isLocalEveHost(host = eveHost()): boolean {
 
 export function createPipelineClient(host?: string): Client {
   const resolvedHost = eveHost(host);
-  const oidcToken = process.env.VERCEL_OIDC_TOKEN;
   return new Client({
     host: resolvedHost,
-    ...(isLocalEveHost(resolvedHost) || !oidcToken
+    ...(isLocalEveHost(resolvedHost)
       ? {}
-      : { auth: { vercelOidc: { token: oidcToken } } as const, redirect: "error" as const }),
+      : {
+          auth: {
+            vercelOidc: {
+              // The async helper refreshes an expired local `eve link` token
+              // and resolves the invocation token automatically on Vercel.
+              token: () => getVercelOidcToken({ expirationBufferMs: 5 * 60 * 1000 }),
+            },
+          } as const,
+          redirect: "error" as const,
+        }),
   });
 }
 
@@ -206,7 +270,7 @@ function buildResearchContinuationMessage(
         ? "Make at most 3 first-party-focused searches. Save only 35-organization-research with save_research_stage_packet stage organization_research."
         : stage === "source_verification"
           ? "Make at most 2 gap-filling searches. Save only 40-source-verification with save_research_stage_packet stage source_verification."
-          : "Prepare and save only 50-curriculum-signals with save_research_stage_packet stage curriculum.";
+          : "Do not call web_search. Prepare and save only 50-curriculum-signals with save_research_stage_packet stage curriculum.";
   return [
     `Continue RESEARCH for run_id ${runId} and video_id ${videoId}.`,
     `This bounded turn is only stage ${stage}.`,
@@ -229,7 +293,7 @@ export function buildSynthesisPhaseMessage(
       : stage === "technology_library_summary"
         ? "Prepare and save only 70-technology-library-summary with at most four high-value families. Pass run_id plus content only; the save tool injects immutable identity fields."
         : stage === "organization_profile"
-          ? "Prepare and save only 80-organization-profile. Include the primary organization plus at most three other material organizations. Use two to six ranked sources for the primary and at most one source per other organization. Pass run_id plus content only; the save tool injects immutable identity fields."
+          ? "Prepare and save only 80-organization-profile. Include the primary organization plus at most three other material organizations. Use two to six ranked, verified, publicly retrievable authoritative sources for the primary and at most one source per other organization. The primary needs identity/ownership evidence plus implementation-specific technical evidence. Prefer a dedicated official product, documentation, repository, research/model/system-card, engineering-blog, changelog, or standards source. A verified first-party root homepage may serve both identity and technical roles only when its supports array explicitly describes a product, platform, system, or implementation; still include at least two ranked sources total. Reuse only facts and URLs in the loaded verified packet. Pass run_id plus content only; the save tool injects immutable identity fields."
           : "Save only 90-ingestion-intent by calling save_synthesis_stage_packet with run_id. The save tool deterministically assembles ordered operations and all identity fields from verified artifacts 10-80; do not reconstruct them yourself.";
   return [
     "You are in the SYNTHESIS phase of a pre-research v2 run.",
@@ -304,7 +368,7 @@ async function loadLiveRunForVideo(videoId: string): Promise<RunRow | null> {
 
 async function latestSession(runId: string, phase: "research" | "synthesis"): Promise<SessionRow | null> {
   const rows = await query<SessionRow>(
-    `select eve_session_id, status, phase, attempt
+    `select eve_session_id, status, phase, attempt, result_summary
        from public.research_pre_research_session
       where run_id = $1 and phase = $2
       order by attempt desc
@@ -312,6 +376,37 @@ async function latestSession(runId: string, phase: "research" | "synthesis"): Pr
     [runId, phase],
   );
   return rows[0] ?? null;
+}
+
+async function persistStageSessionSummary(
+  runId: string,
+  sessionId: string,
+  identity: ControllerStageIdentity,
+  deliveryCount: number,
+): Promise<void> {
+  await query(
+    `update public.research_pre_research_session
+        set result_summary = jsonb_build_object(
+          'controller_stage', jsonb_build_object('phase', $3::text, 'stage', $4::text),
+          'delivery_count', $5::integer
+        )
+      where run_id = $1 and eve_session_id = $2`,
+    [runId, sessionId, identity.phase, identity.stage, deliveryCount],
+  );
+}
+
+async function recordStageSessionDelivery(runId: string, sessionId: string): Promise<void> {
+  await query(
+    `update public.research_pre_research_session
+        set result_summary = jsonb_set(
+          coalesce(result_summary, '{}'::jsonb),
+          '{delivery_count}',
+          to_jsonb(coalesce((result_summary ->> 'delivery_count')::integer, 1) + 1),
+          true
+        )
+      where run_id = $1 and eve_session_id = $2`,
+    [runId, sessionId],
+  );
 }
 
 async function markSessionFailed(
@@ -376,10 +471,15 @@ async function claimVideo(videoId?: string, leaseSeconds = DEFAULT_LEASE_SECONDS
   return rows[0]?.claim ?? { claimed: false, reason: "EMPTY_RESULT" };
 }
 
-async function beginResearchSession(runId: string, sessionId: string): Promise<void> {
+async function beginResearchSession(
+  runId: string,
+  sessionId: string,
+  stage: ResearchStageName,
+): Promise<void> {
   await withBindingRetry(async () => {
     await query(`select research_private.begin_research_session($1::uuid, $2)`, [runId, sessionId]);
   });
+  await persistStageSessionSummary(runId, sessionId, { phase: "research", stage }, 1);
 }
 
 async function completeResearchPhase(runId: string, sessionId: string): Promise<void> {
@@ -388,10 +488,15 @@ async function completeResearchPhase(runId: string, sessionId: string): Promise<
   });
 }
 
-async function beginSynthesisSession(runId: string, sessionId: string): Promise<void> {
+async function beginSynthesisSession(
+  runId: string,
+  sessionId: string,
+  stage: SynthesisStageName,
+): Promise<void> {
   await withBindingRetry(async () => {
     await query(`select research_private.begin_synthesis_session($1::uuid, $2)`, [runId, sessionId]);
   });
+  await persistStageSessionSummary(runId, sessionId, { phase: "synthesis", stage }, 1);
 }
 
 async function completeSynthesisPhase(
@@ -463,20 +568,62 @@ async function markSessionCheckpointComplete(
 async function pendingInputRequests(
   session: ReturnType<Client["sessions"]["attach"]>,
 ): Promise<InputRequest[]> {
-  const snap = await session.snapshot();
-  const pending: InputRequest[] = [];
-  const seen = new Set<string>();
-  for (const event of snap.events ?? []) {
+  const pending = new Map<string, InputRequest>();
+  for (const event of await readSessionTail(session, DURABLE_SESSION_TAIL_EVENTS)) {
+    if (event.type === "message.received") {
+      pending.clear();
+      continue;
+    }
     if (event.type !== "input.requested") continue;
     const requests = ((event.data as unknown as { requests?: InputRequest[] } | undefined)?.requests ??
       []) as InputRequest[];
     for (const request of requests) {
-      if (!request.requestId || seen.has(request.requestId)) continue;
-      seen.add(request.requestId);
-      pending.push(request);
+      if (request.requestId) pending.set(request.requestId, request);
     }
   }
-  return pending;
+  return [...pending.values()];
+}
+
+async function readSessionTail(
+  session: ReturnType<Client["sessions"]["attach"]>,
+  maximumEvents: number,
+): Promise<MessageStreamEvent[]> {
+  const abort = new AbortController();
+  const iterator = session.stream({
+    follow: true,
+    signal: abort.signal,
+    startIndex: -maximumEvents,
+    streamReconnectPolicy: { reconnect: false },
+  })[Symbol.asyncIterator]();
+  const events: MessageStreamEvent[] = [];
+  try {
+    while (events.length < maximumEvents) {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const next = iterator.next().then(
+        (result) => ({ kind: "event" as const, result }),
+        (error) => ({ kind: "error" as const, error }),
+      );
+      const idle = new Promise<{ kind: "idle" }>((resolve) => {
+        timer = setTimeout(() => resolve({ kind: "idle" }), events.length === 0 ? 5_000 : 250);
+      });
+      const outcome = await Promise.race([next, idle]);
+      if (timer) clearTimeout(timer);
+      if (outcome.kind === "idle") {
+        abort.abort();
+        await next;
+        break;
+      }
+      if (outcome.kind === "error") {
+        if (abort.signal.aborted) break;
+        throw outcome.error;
+      }
+      if (outcome.result.done) break;
+      events.push(outcome.result.value);
+    }
+  } finally {
+    abort.abort();
+  }
+  return events;
 }
 
 async function autoRespondPending(
@@ -507,6 +654,7 @@ async function autoRespondPending(
   for (const response of responses) answered.add(response.requestId);
   try {
     await session.respond(responses);
+    if (runId) await recordStageSessionDelivery(runId, session.state.sessionId);
     return true;
   } catch {
     for (const response of responses) answered.delete(response.requestId);
@@ -565,8 +713,10 @@ async function waitForSessionTerminal(
   requiredKinds: readonly string[] = [],
   runId?: string,
   firstEventTimeoutMs?: number,
+  deadlineAtMs?: number,
 ): Promise<MessageResult> {
   const session = client.sessions.attach(sessionId);
+  const waitDeadline = controllerWaitDeadline(deadlineAtMs);
   const answered = new Set<string>();
   let message: string | undefined;
   let status: MessageResult["status"] = "waiting";
@@ -583,8 +733,16 @@ async function waitForSessionTerminal(
       status: "completed",
     };
   }
-
-  await autoRespondPending(session, answered, videoId, runId, requiredKinds);
+  if (Date.now() >= waitDeadline) {
+    return {
+      data: undefined,
+      message: controllerWaitBudgetMessage(deadlineAtMs),
+      events: [],
+      inputRequests: [],
+      sessionId,
+      status: "waiting",
+    };
+  }
 
   // A reused session may already be parked or terminal before this controller
   // attaches. Read the durable history once so a tail-only follower cannot wait
@@ -592,7 +750,9 @@ async function waitForSessionTerminal(
   // session boundary, so historical waiting events cannot trigger duplicate
   // retries.
   let durableBoundary: "completed" | "failed" | "waiting" | null = null;
-  for await (const event of session.stream({ follow: false, startIndex: 0 })) {
+  let durableTailEventId: string | null = null;
+  for (const event of await readSessionTail(session, DURABLE_SESSION_TAIL_EVENTS)) {
+    durableTailEventId = event.meta?.id ?? durableTailEventId;
     // A delivery after a waiting boundary means a newer turn is queued or
     // active. Do not replay the older waiting state and inject another nudge;
     // doing so can stack two steer turns and park the session command queue.
@@ -633,14 +793,18 @@ async function waitForSessionTerminal(
 
   if (durableBoundary === "waiting") {
     const handled = await autoRespondPending(session, answered, videoId, runId, requiredKinds);
+    if (handled) parkedTurnRetries = MAX_PARKED_TURN_RETRIES;
     if (!handled) {
       const retryMessage =
         runId && videoId
           ? buildCheckpointRetryMessage(runId, videoId, requiredKinds)
           : `Retry the same phase from durable state after this transient provider failure (1/${MAX_PARKED_TURN_RETRIES}). Do not restart work, create another session, call subagents, or use sandbox/file tools.`;
       await session.send(retryMessage);
+      if (runId) await recordStageSessionDelivery(runId, sessionId);
+      // This Cron tick has spent its one controller-level delivery whether the
+      // boundary represented a provider failure or a missing-checkpoint nudge.
+      parkedTurnRetries = MAX_PARKED_TURN_RETRIES;
       if (lastTurnFailure) {
-        parkedTurnRetries = 1;
         lastTurnFailure = null;
       } else {
         answered.add(`nudge:${sessionId}`);
@@ -648,18 +812,26 @@ async function waitForSessionTerminal(
     }
   }
 
-  // The bounded replay above advanced this attached session's cursor to the
-  // durable tail. Following from that cursor includes any event written after
-  // the snapshot without replaying historical waiting boundaries.
-  const rawStream = session.stream({ follow: true });
-  const events = firstEventTimeoutMs
-    ? streamWithFirstEventTimeout(rawStream, firstEventTimeoutMs, sessionId)
+  // Tail-relative reads do not mutate the client's stored cursor. Follow from
+  // the latest event and suppress only the exact event reduced above.
+  const rawStream = session.stream({ follow: true, startIndex: -1 });
+  const effectiveFirstEventTimeoutMs = firstEventTimeoutMs
+    ? Math.max(1, Math.min(firstEventTimeoutMs, waitDeadline - Date.now()))
+    : undefined;
+  const events = effectiveFirstEventTimeoutMs
+    ? streamWithFirstEventTimeout(rawStream, effectiveFirstEventTimeoutMs, sessionId)
     : rawStream;
 
   let lastDiskCheck = 0;
   const iterator = events[Symbol.asyncIterator]();
   let pendingEvent = iterator.next();
+  let checkedFirstFollowEvent = false;
   while (true) {
+    if (Date.now() >= waitDeadline) {
+      status = "waiting";
+      message = controllerWaitBudgetMessage(deadlineAtMs);
+      break;
+    }
     const outcome = await Promise.race([
       pendingEvent.then((result) => ({ kind: "event" as const, result })),
       sleep(2_000).then(() => ({ kind: "poll" as const })),
@@ -678,6 +850,10 @@ async function waitForSessionTerminal(
     if (outcome.result.done) break;
     const event = outcome.result.value;
     pendingEvent = iterator.next();
+    if (!checkedFirstFollowEvent) {
+      checkedFirstFollowEvent = true;
+      if (durableTailEventId && event.meta?.id === durableTailEventId) continue;
+    }
     if (Date.now() - lastDiskCheck > 30_000) {
       lastDiskCheck = Date.now();
       try {
@@ -721,6 +897,7 @@ async function waitForSessionTerminal(
         runId,
         requiredKinds,
       );
+      if (handled) parkedTurnRetries = MAX_PARKED_TURN_RETRIES;
       if (!handled && lastTurnFailure) {
         if (parkedTurnRetries >= MAX_PARKED_TURN_RETRIES) {
           status = "waiting";
@@ -736,8 +913,12 @@ async function waitForSessionTerminal(
               ? `${buildCheckpointRetryMessage(runId, videoId, requiredKinds)} Retry after transient provider failure (${parkedTurnRetries}/${MAX_PARKED_TURN_RETRIES}).`
               : `Retry the same phase from durable state after this transient provider failure (${parkedTurnRetries}/${MAX_PARKED_TURN_RETRIES}). Do not restart work, create another session, call subagents, or use sandbox/file tools.`,
           );
-        } catch {
+          if (runId) await recordStageSessionDelivery(runId, sessionId);
+        } catch (error) {
           parkedTurnRetries -= 1;
+          status = "waiting";
+          message = `TRANSIENT_RETRY_DELIVERY_FAILED: ${error instanceof Error ? error.message : String(error)}`;
+          break;
         }
         lastTurnFailure = null;
       } else if (!handled && !answered.has(`nudge:${sessionId}`)) {
@@ -748,8 +929,12 @@ async function waitForSessionTerminal(
               ? buildCheckpointRetryMessage(runId, videoId, requiredKinds)
               : "Continue the current phase. Do not ask for lease_token, call subagents, or use sandbox/file tools. Finish the remaining artifacts sequentially and save the packet.",
           );
-        } catch {
+          if (runId) await recordStageSessionDelivery(runId, sessionId);
+        } catch (error) {
           answered.delete(`nudge:${sessionId}`);
+          status = "waiting";
+          message = `CHECKPOINT_NUDGE_DELIVERY_FAILED: ${error instanceof Error ? error.message : String(error)}`;
+          break;
         }
       }
     }
@@ -767,6 +952,40 @@ async function waitForSessionTerminal(
 
 function sessionIsTerminal(status: string): boolean {
   return status === "completed" || status === "failed" || status === "cancelled";
+}
+
+async function inspectDurableStageSession(
+  client: Client,
+  runId: string,
+  session: SessionRow,
+): Promise<{ identity: ControllerStageIdentity | null; deliveryCount: number }> {
+  const persisted = controllerStageSessionSummaryFromResult(session.result_summary);
+  if (persisted) {
+    return {
+      identity: persisted.controller_stage,
+      deliveryCount: persisted.delivery_count,
+    };
+  }
+
+  let identity: ControllerStageIdentity | null = null;
+  const attached = client.sessions.attach(session.eve_session_id);
+  for await (const event of attached.stream({ follow: false, startIndex: 0 })) {
+    if (event.type !== "message.received") continue;
+    const data = event.data as { message?: unknown } | undefined;
+    if (typeof data?.message === "string") {
+      identity = controllerStageIdentityFromMessage(data.message);
+    }
+    break;
+  }
+
+  let deliveryCount = 0;
+  for (const event of await readSessionTail(attached, LEGACY_SESSION_DELIVERY_TAIL_EVENTS)) {
+    if (event.type === "message.received") deliveryCount += 1;
+  }
+  if (identity && deliveryCount >= 1) {
+    await persistStageSessionSummary(runId, session.eve_session_id, identity, deliveryCount);
+  }
+  return { identity, deliveryCount };
 }
 
 export async function recoverStaleSynthesisSession(
@@ -791,7 +1010,9 @@ async function awaitResultOrArtifacts(
   runId: string,
   requiredKinds: readonly string[],
   sessionId: string,
+  deadlineAtMs?: number,
 ): Promise<MessageResult> {
+  const waitDeadline = controllerWaitDeadline(deadlineAtMs);
   let settled: MessageResult | undefined;
   let failure: unknown;
   void response.result().then(
@@ -811,6 +1032,16 @@ async function awaitResultOrArtifacts(
         inputRequests: [],
         sessionId,
         status: "completed",
+      };
+    }
+    if (Date.now() >= waitDeadline) {
+      return {
+        data: undefined,
+        message: controllerWaitBudgetMessage(deadlineAtMs),
+        events: [],
+        inputRequests: [],
+        sessionId,
+        status: "waiting",
       };
     }
     assertDiskHeadroom();
@@ -840,63 +1071,86 @@ async function registeredArtifactValues(
   return values;
 }
 
-async function loadOrBuildVideoContext(run: RunRow): Promise<unknown> {
-  const storagePath = `${packetStoragePrefix(run.video_id, run.run_id, run.packet_schema_version ?? PACKET_SCHEMA_VERSION)}/.controller-video-context.json`;
-  const localPath = hostArtifactPath(storagePath);
+async function loadOrBuildVideoContext(run: RunRow, deadlineAtMs?: number): Promise<unknown> {
+  const packetPrefix = packetStoragePrefix(
+    run.video_id,
+    run.run_id,
+    run.packet_schema_version ?? PACKET_SCHEMA_VERSION,
+  );
+  const localStoragePath = `${packetPrefix}/.controller-video-context.json`;
+  const cacheStoragePath = `_controller-cache/v2/${run.video_id}/${run.run_id}.json`;
+  const checkpointStoragePath = `_controller-cache/v2/${run.video_id}/${run.run_id}.sections.json`;
+  const localCheckpointPath = `${packetPrefix}/.controller-video-context.sections.json`;
+  const localPath = hostArtifactPath(localStoragePath);
+  const isValidCache = (cached: {
+    video?: { video_id?: string; transcript_sha256?: string };
+    transcript_analysis?: { run_id?: string; video_id?: string; transcript_sha256?: string };
+    transcript_processing?: { raw_transcript_returned?: boolean };
+  }): boolean => (
+    cached.video?.video_id === run.video_id
+    && cached.video?.transcript_sha256 === run.transcript_sha256
+    && cached.transcript_analysis?.run_id === run.run_id
+    && cached.transcript_analysis?.video_id === run.video_id
+    && cached.transcript_analysis?.transcript_sha256 === run.transcript_sha256
+    && cached.transcript_processing?.raw_transcript_returned === false
+  );
   try {
     const cached = JSON.parse(await readFile(localPath, "utf8")) as {
       video?: { video_id?: string; transcript_sha256?: string };
       transcript_analysis?: { run_id?: string; video_id?: string; transcript_sha256?: string };
       transcript_processing?: { raw_transcript_returned?: boolean };
     };
-    if (
-      cached.video?.video_id === run.video_id &&
-      cached.video?.transcript_sha256 === run.transcript_sha256 &&
-      cached.transcript_analysis?.run_id === run.run_id &&
-      cached.transcript_analysis?.video_id === run.video_id &&
-      cached.transcript_analysis?.transcript_sha256 === run.transcript_sha256 &&
-      cached.transcript_processing?.raw_transcript_returned === false
-    ) {
-      return cached;
-    }
+    if (isValidCache(cached)) return cached;
   } catch {
     // Missing, partial, or stale cache: rebuild from the claimed transcript.
   }
-  const built = await buildIterativeVideoContext(run.run_id, run.video_id);
-  await writeHostArtifact(storagePath, `${JSON.stringify(built, null, 2)}\n`);
+  try {
+    const cached = (await downloadJsonObject(intentBucket(), cacheStoragePath)).json as Parameters<typeof isValidCache>[0];
+    if (isValidCache(cached)) return cached;
+  } catch {
+    // No durable cache exists yet. Build it from the claimed transcript.
+  }
+  const built = await buildIterativeVideoContext(run.run_id, run.video_id, {
+    deadlineAtMs,
+    loadCheckpoint: async () => (
+      await downloadJsonObject(intentBucket(), checkpointStoragePath)
+    ).json,
+    saveCheckpoint: async (checkpoint) => {
+      const checkpointBody = `${JSON.stringify(checkpoint, null, 2)}\n`;
+      await uploadStorageObject({
+        bucket: intentBucket(),
+        path: checkpointStoragePath,
+        body: checkpointBody,
+        contentType: "application/json",
+        upsert: true,
+      });
+      await writeHostArtifact(localCheckpointPath, checkpointBody);
+    },
+  });
+  const body = `${JSON.stringify(built, null, 2)}\n`;
+  await uploadStorageObject({
+    bucket: intentBucket(),
+    path: cacheStoragePath,
+    body,
+    contentType: "application/json",
+    upsert: true,
+  });
+  await writeHostArtifact(localStoragePath, body);
   return built;
 }
 
-async function runResearchSession(client: Client, run: RunRow): Promise<{
+async function runResearchSession(client: Client, run: RunRow, deadlineAtMs?: number): Promise<{
   sessionId: string;
   result: MessageResult;
 }> {
   const existing = await latestSession(run.run_id, "research");
+  let stage = await firstMissingResearchStage(run.run_id);
   console.error("[pre-research] research session state", {
     run_id: run.run_id,
     latest_status: existing?.status ?? null,
     latest_attempt: existing?.attempt ?? null,
   });
-  // Cross-turn steer queues can park a reused Eve session before the next
-  // stage starts. Keep stages serial, but give each bounded checkpoint one
-  // clean root session. No subagent or sandbox tools are enabled in any stage.
-  if (existing?.status === "started" && run.research_session_id) {
-    try {
-      await client.sessions.attach(run.research_session_id).reset({
-        reason: "Retire active research session before durable stage recovery",
-      });
-    } catch {
-      // Database state is authoritative if the remote session already ended.
-    }
-    await markSessionFailed(
-      run.run_id,
-      run.research_session_id,
-      "STAGE_SESSION_RECOVERY",
-      "retired active session and resumed from the first missing durable artifact",
-    );
-  }
 
-  let stage = await firstMissingResearchStage(run.run_id);
   if (!stage) {
     const sessionId = existing?.eve_session_id ?? run.research_session_id ?? "research-artifacts-complete";
     return {
@@ -912,19 +1166,137 @@ async function runResearchSession(client: Client, run: RunRow): Promise<{
     };
   }
 
+  // A provider failure parks Eve in a reusable waiting state. Reuse that
+  // durable session only when its controller-authored first message proves it
+  // owns the same still-missing stage. This preserves partial tool-loop
+  // history and avoids a new root session on every Cron tick. A delivery cap
+  // bounds accumulated retry prompts; stage changes always get a clean session.
+  if (existing?.status === "started" && run.research_session_id) {
+    let reusable = false;
+    let alreadyRetired = false;
+    try {
+      const inspected = await inspectDurableStageSession(client, run.run_id, existing);
+      reusable = canResumeControllerStageSession(
+        inspected.identity,
+        { phase: "research", stage: stage.name },
+        inspected.deliveryCount,
+        MAX_SAME_STAGE_SESSION_DELIVERIES,
+      );
+      if (reusable) {
+        console.error("[pre-research] resuming parked research stage session", {
+          run_id: run.run_id,
+          stage: stage.name,
+          session_id: run.research_session_id,
+          delivery_count: inspected.deliveryCount,
+        });
+        const resumed = await waitForSessionTerminal(
+          client,
+          run.research_session_id,
+          run.video_id,
+          stage.kinds,
+          run.run_id,
+          45_000,
+          deadlineAtMs,
+        );
+        if (await artifactsComplete(run.run_id, stage.kinds)) {
+          const nextStage = await firstMissingResearchStage(run.run_id);
+          if (!nextStage) return { sessionId: run.research_session_id, result: resumed };
+          await markSessionCheckpointComplete(run.run_id, run.research_session_id);
+          try {
+            await client.sessions.attach(run.research_session_id).reset({
+              reason: `Research stage ${stage.name} checkpoint complete`,
+            });
+          } catch {
+            // The durable artifact and completed DB session are authoritative.
+          }
+          stage = nextStage;
+          alreadyRetired = true;
+        } else if (resumed.status === "waiting") {
+          return { sessionId: run.research_session_id, result: resumed };
+        }
+      }
+    } catch (error) {
+      console.error("[pre-research] parked research session was not reusable", {
+        run_id: run.run_id,
+        session_id: run.research_session_id,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+    if (!alreadyRetired) {
+      try {
+        await client.sessions.attach(run.research_session_id).reset({
+          reason: "Retire research session before durable stage recovery",
+        });
+      } catch {
+        // Database state is authoritative if the remote session already ended.
+      }
+      await markSessionFailed(
+        run.run_id,
+        run.research_session_id,
+        "STAGE_SESSION_RECOVERY",
+        "retired exhausted, failed, or stage-mismatched session and resumed from the first missing durable artifact",
+      );
+    }
+  }
+
   let lastSessionId = "research-artifacts-complete";
   let lastResult: MessageResult | null = null;
   while (stage) {
+    if (deadlineAtMs != null && Date.now() >= deadlineAtMs) {
+      lastResult = {
+        data: undefined,
+        message: controllerWaitBudgetMessage(deadlineAtMs),
+        events: [],
+        inputRequests: [],
+        sessionId: lastSessionId,
+        status: "waiting",
+      };
+      break;
+    }
     const stageIndex = RESEARCH_STAGES.findIndex((candidate) => candidate.name === stage!.name);
     const priorKinds = RESEARCH_STAGES.slice(0, stageIndex).flatMap((candidate) => [...candidate.kinds]);
-    const initialMessage = stage.name === "transcript_taxonomy"
-      ? buildResearchPhaseMessage(run.run_id, run.video_id, await loadOrBuildVideoContext(run))
-      : buildResearchContinuationMessage(
-          run.run_id,
-          run.video_id,
-          stage.name,
-          await registeredArtifactValues(run.run_id, priorKinds),
-        );
+    let initialMessage: string;
+    try {
+      initialMessage = stage.name === "transcript_taxonomy"
+        ? buildResearchPhaseMessage(
+            run.run_id,
+            run.video_id,
+            await loadOrBuildVideoContext(run, deadlineAtMs),
+          )
+        : buildResearchContinuationMessage(
+            run.run_id,
+            run.video_id,
+            stage.name,
+            await registeredArtifactValues(run.run_id, priorKinds),
+          );
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      if (detail.startsWith("CONTROLLER_INVOCATION_BUDGET_EXHAUSTED")) {
+        lastResult = {
+          data: undefined,
+          message: detail,
+          events: [],
+          inputRequests: [],
+          sessionId: lastSessionId,
+          status: "waiting",
+        };
+        break;
+      }
+      throw error;
+    }
+    // Transcript reduction and artifact hydration can consume most of a Cron
+    // invocation. Never create a new Eve stage from a stale pre-work check.
+    if (deadlineAtMs != null && Date.now() >= deadlineAtMs) {
+      lastResult = {
+        data: undefined,
+        message: controllerWaitBudgetMessage(deadlineAtMs),
+        events: [],
+        inputRequests: [],
+        sessionId: lastSessionId,
+        status: "waiting",
+      };
+      break;
+    }
     console.error("[pre-research] creating isolated research stage session", {
       run_id: run.run_id,
       stage: stage.name,
@@ -942,9 +1314,15 @@ async function runResearchSession(client: Client, run: RunRow): Promise<{
     const sessionId = created.response.sessionId;
     if (!sessionId) throw new Error("SESSION_BINDING_PENDING: research sessionId was empty");
     lastSessionId = sessionId;
-    await beginResearchSession(run.run_id, sessionId);
+    await beginResearchSession(run.run_id, sessionId, stage.name);
     try {
-      lastResult = await awaitResultOrArtifacts(created.response, run.run_id, stage.kinds, sessionId);
+      lastResult = await awaitResultOrArtifacts(
+        created.response,
+        run.run_id,
+        stage.kinds,
+        sessionId,
+        deadlineAtMs,
+      );
       if (!(await artifactsComplete(run.run_id, stage.kinds)) && lastResult.status !== "failed") {
         lastResult = await waitForSessionTerminal(
           client,
@@ -952,6 +1330,8 @@ async function runResearchSession(client: Client, run: RunRow): Promise<{
           run.video_id,
           stage.kinds,
           run.run_id,
+          undefined,
+          deadlineAtMs,
         );
       }
       if (lastResult.status === "failed" || !(await artifactsComplete(run.run_id, stage.kinds))) {
@@ -1094,34 +1474,12 @@ async function runRemainingResearchStages(
   };
 }
 
-async function runSynthesisSession(client: Client, run: RunRow): Promise<{
+async function runSynthesisSession(client: Client, run: RunRow, deadlineAtMs?: number): Promise<{
   sessionId: string;
   result: MessageResult;
 }> {
   const existing = await latestSession(run.run_id, "synthesis");
-  if (run.status === "synthesizing" && run.synthesis_session_id && existing?.status === "started") {
-    try {
-      await client.sessions.attach(run.synthesis_session_id).reset({
-        reason: "Retire active synthesis session before durable stage recovery",
-      });
-    } catch (error) {
-      // Database state is authoritative if the remote session already ended.
-    }
-    await markSessionFailed(
-      run.run_id,
-      run.synthesis_session_id,
-      "STAGE_SESSION_RECOVERY",
-      "retired active session and resumed from the first missing durable artifact",
-    );
-    await revertFailedSynthesis(run.run_id);
-  } else if (existing?.status === "failed" && run.status === "synthesizing") {
-    await revertFailedSynthesis(run.run_id);
-  }
-
   let current = await loadRun(run.run_id);
-  if (current.status !== "research_complete") {
-    throw new Error(`ILLEGAL_PHASE_TRANSITION: synthesis requires research_complete, found ${current.status}`);
-  }
   let stage = await firstMissingSynthesisStage(current.run_id);
   if (!stage) {
     const sessionId = existing?.eve_session_id ?? current.synthesis_session_id ?? "synthesis-artifacts-complete";
@@ -1138,9 +1496,99 @@ async function runSynthesisSession(client: Client, run: RunRow): Promise<{
     };
   }
 
+  if (current.status === "synthesizing" && current.synthesis_session_id && existing?.status === "started") {
+    const parkedSessionId = current.synthesis_session_id;
+    let alreadyRetired = false;
+    try {
+      const inspected = await inspectDurableStageSession(client, current.run_id, existing);
+      const reusable = canResumeControllerStageSession(
+        inspected.identity,
+        { phase: "synthesis", stage: stage.name },
+        inspected.deliveryCount,
+        MAX_SAME_STAGE_SESSION_DELIVERIES,
+      );
+      if (reusable) {
+        console.error("[pre-research] resuming parked synthesis stage session", {
+          run_id: current.run_id,
+          stage: stage.name,
+          session_id: parkedSessionId,
+          delivery_count: inspected.deliveryCount,
+        });
+        const resumed = await waitForSessionTerminal(
+          client,
+          parkedSessionId,
+          current.video_id,
+          stage.kinds,
+          current.run_id,
+          45_000,
+          deadlineAtMs,
+        );
+        if (await artifactsComplete(current.run_id, stage.kinds)) {
+          const nextStage = await firstMissingSynthesisStage(current.run_id);
+          if (!nextStage) return { sessionId: parkedSessionId, result: resumed };
+          await markSessionCheckpointComplete(current.run_id, parkedSessionId);
+          try {
+            await client.sessions.attach(parkedSessionId).reset({
+              reason: `Synthesis stage ${stage.name} checkpoint complete`,
+            });
+          } catch {
+            // The durable artifact and completed DB session are authoritative.
+          }
+          await revertFailedSynthesis(current.run_id);
+          current = await loadRun(current.run_id);
+          stage = nextStage;
+          alreadyRetired = true;
+        } else if (resumed.status === "waiting") {
+          return { sessionId: parkedSessionId, result: resumed };
+        }
+      }
+    } catch (error) {
+      console.error("[pre-research] parked synthesis session was not reusable", {
+        run_id: current.run_id,
+        session_id: parkedSessionId,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+    if (!alreadyRetired) {
+      try {
+        await client.sessions.attach(parkedSessionId).reset({
+          reason: "Retire synthesis session before durable stage recovery",
+        });
+      } catch {
+        // Database state is authoritative if the remote session already ended.
+      }
+      await markSessionFailed(
+        current.run_id,
+        parkedSessionId,
+        "STAGE_SESSION_RECOVERY",
+        "retired exhausted, failed, or stage-mismatched session and resumed from the first missing durable artifact",
+      );
+      await revertFailedSynthesis(current.run_id);
+      current = await loadRun(current.run_id);
+    }
+  } else if (existing?.status === "failed" && current.status === "synthesizing") {
+    await revertFailedSynthesis(current.run_id);
+    current = await loadRun(current.run_id);
+  }
+
+  if (current.status !== "research_complete") {
+    throw new Error(`ILLEGAL_PHASE_TRANSITION: synthesis requires research_complete, found ${current.status}`);
+  }
+
   let lastSessionId = "synthesis-artifacts-complete";
   let lastResult: MessageResult | null = null;
   while (stage) {
+    if (deadlineAtMs != null && Date.now() >= deadlineAtMs) {
+      lastResult = {
+        data: undefined,
+        message: controllerWaitBudgetMessage(deadlineAtMs),
+        events: [],
+        inputRequests: [],
+        sessionId: lastSessionId,
+        status: "waiting",
+      };
+      break;
+    }
     assertDiskHeadroom();
     console.error("[pre-research] creating isolated synthesis stage session", {
       run_id: current.run_id,
@@ -1158,9 +1606,15 @@ async function runSynthesisSession(client: Client, run: RunRow): Promise<{
     const sessionId = created.response.sessionId;
     if (!sessionId) throw new Error("SESSION_BINDING_PENDING: synthesis sessionId was empty");
     lastSessionId = sessionId;
-    await beginSynthesisSession(current.run_id, sessionId);
+    await beginSynthesisSession(current.run_id, sessionId, stage.name);
     try {
-      lastResult = await awaitResultOrArtifacts(created.response, current.run_id, stage.kinds, sessionId);
+      lastResult = await awaitResultOrArtifacts(
+        created.response,
+        current.run_id,
+        stage.kinds,
+        sessionId,
+        deadlineAtMs,
+      );
       if (!(await artifactsComplete(current.run_id, stage.kinds)) && lastResult.status !== "failed") {
         lastResult = await waitForSessionTerminal(
           client,
@@ -1168,6 +1622,8 @@ async function runSynthesisSession(client: Client, run: RunRow): Promise<{
           current.video_id,
           stage.kinds,
           current.run_id,
+          undefined,
+          deadlineAtMs,
         );
       }
       if (lastResult.status === "failed" || !(await artifactsComplete(current.run_id, stage.kinds))) {
@@ -1337,7 +1793,7 @@ export async function runPreResearchPipeline(
       `Eve is not reachable at ${host} (${detail}). Start the built server with PRE_RESEARCH_LOCAL_EVE_START=true and PORT=2000, then: npm run start -- --host 127.0.0.1`,
     );
   }
-  assertDiskHeadroom();
+  assertDiskHeadroom(options.eveUrl);
 
   let run: RunRow | null = null;
   if (options.runId) {
@@ -1395,7 +1851,7 @@ export async function runPreResearchPipeline(
 
   const researchNeeded = ["claimed", "analyzing"].includes(run.status);
   if (researchNeeded) {
-    const research = await runResearchSession(client, run);
+    const research = await runResearchSession(client, run, options.deadlineAtMs);
     result.research_session_id = research.sessionId;
     result.research_status = research.result.status;
     if (
@@ -1433,7 +1889,7 @@ export async function runPreResearchPipeline(
   const synthesisNeeded = run.status === "research_complete" || run.status === "synthesizing";
   if (synthesisNeeded) {
     try {
-      const synthesis = await runSynthesisSession(client, run);
+      const synthesis = await runSynthesisSession(client, run, options.deadlineAtMs);
       result.synthesis_session_id = synthesis.sessionId;
       result.synthesis_status = synthesis.result.status;
       if (
@@ -1499,6 +1955,17 @@ export async function runPreResearchPipeline(
       result.finished = receipt.finished_marker_written;
     } catch (error) {
       if (error instanceof ApplyIntentError && error.code === "REVIEW_REQUIRED") {
+        if (run.synthesis_session_id) {
+          try {
+            await completeSynthesisPhase(run.run_id, run.synthesis_session_id, "review_required");
+          } catch (transitionError) {
+            result.error = `${error.message}; REVIEW_STATE_TRANSITION_FAILED: ${
+              transitionError instanceof Error ? transitionError.message : String(transitionError)
+            }`;
+            result.phase = "review_required";
+            return result;
+          }
+        }
         result.phase = "review_required";
         result.error = error.message;
         return result;
@@ -1512,26 +1979,28 @@ export async function runPreResearchPipeline(
 }
 
 async function inferSynthesisNextStatus(runId: string): Promise<"intent_ready" | "review_required"> {
-  const artifacts = await query<{ storage_bucket: string; storage_path: string }>(
-    `select storage_bucket, storage_path
+  const artifacts = await query<{ artifact_kind: string; storage_bucket: string; storage_path: string }>(
+    `select artifact_kind, storage_bucket, storage_path
        from public.research_pre_research_artifact
-      where run_id = $1 and artifact_kind = 'organization_profile'`,
-    [runId],
+      where run_id = $1 and artifact_kind = any($2::text[])`,
+    [runId, ["organization_profile", "ingestion_intent"]],
   );
-  const artifact = artifacts[0];
-  if (!artifact) {
-    return "intent_ready";
+  const profileArtifact = artifacts.find((artifact) => artifact.artifact_kind === "organization_profile");
+  const intentArtifact = artifacts.find((artifact) => artifact.artifact_kind === "ingestion_intent");
+  if (!profileArtifact || !intentArtifact) {
+    throw new Error(`SYNTHESIS_REVIEW_INPUT_NOT_REGISTERED: ${runId}`);
   }
-  try {
-    const profile = (await downloadJsonObject(artifact.storage_bucket, artifact.storage_path)).json as {
-      review_required?: boolean;
-      primary_domain_code?: string;
-    };
-    if (profile.review_required || profile.primary_domain_code === "other_unknown") {
-      return "review_required";
-    }
-  } catch {
-    return "intent_ready";
+  const profile = organizationProfileSchema.parse(
+    (await downloadJsonObject(profileArtifact.storage_bucket, profileArtifact.storage_path)).json,
+  ) as OrganizationProfile;
+  const parsedIntent = parseIngestionIntent(
+    (await downloadJsonObject(intentArtifact.storage_bucket, intentArtifact.storage_path)).json,
+  );
+  if (parsedIntent.schema_version === "1.0.0") {
+    throw new Error(`SYNTHESIS_REVIEW_REQUIRES_V2_INTENT: ${runId}`);
   }
-  return "intent_ready";
+  return automaticReviewReasons({
+    intent: parsedIntent as IngestionIntent,
+    profile,
+  }).length > 0 ? "review_required" : "intent_ready";
 }
