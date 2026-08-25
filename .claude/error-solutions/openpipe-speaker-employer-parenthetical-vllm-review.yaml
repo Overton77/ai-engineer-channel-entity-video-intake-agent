@@ -1,0 +1,41 @@
+id: "openpipe-speaker-employer-parenthetical-vllm-review"
+created: "2026-08-25T10:54:00Z"
+updated: "2026-08-25T10:54:00Z"
+
+error:
+  type: "runtime"
+  category: "SemanticMisclassification"
+  language: "typescript"
+  pattern: "Transcript-explicit OpenPipe speaker employer lost to discussed vLLM"
+  context: "Stateless pre-research organization hydration"
+
+diagnosis:
+  root_cause: "The transcript organization-name regex retained the trailing parenthetical in 'OpenPipe (a fine-tuning platform)', so exact official-receipt matching failed and the model-selected discussed technology vLLM remained primary."
+  factors:
+    - "OpenPipe's official homepage and documentation were already present in the immutable search receipt"
+    - "The unapplied intent had all eleven pre-apply artifacts but zero apply events"
+    - "The valid other_unknown vLLM result concealed the identity-selection defect until semantic audit"
+
+solution:
+  immediate:
+    - "Guardedly supersede only the proven defective review_required packet"
+  proper:
+    - "Strip a trailing parenthetical from transcript-derived organization names before exact receipt matching"
+    - "Add a bounded OpenPipe refinement to model_training_inference_platform when official identity and fine-tuning or model-training evidence agree"
+  code_change: "Slim-37 adds the parser normalization, OpenPipe domain refinement, and regression."
+
+verification:
+  - "All 135 tests, TypeScript, and the production build pass"
+  - "Guarded dry-run proved the old intent was validated, unapplied, latest, and had zero events"
+  - "Fresh slim-37 reprocessing applied all nine stages on attempt 1 with twelve hash-matched objects and twelve operations"
+  - "Canonical result records independent OpenPipe with model_training_inference_platform and five organization sources"
+
+prevention:
+  - "Normalize explanatory parentheticals before comparing transcript organizations with search receipts"
+  - "Regression-test transcript-explicit employers against prominently discussed libraries"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T10:54:27Z"
+  success_rate: 1.0
+  tags: ["typescript", "pre-research", "organization-identity", "openpipe", "vllm"]

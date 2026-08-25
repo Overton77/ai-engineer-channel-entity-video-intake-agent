@@ -1,0 +1,38 @@
+id: "mongodb-canonical-name-casing"
+created: "2026-08-25T09:41:00Z"
+updated: "2026-08-25T09:41:00Z"
+
+error:
+  type: "runtime"
+  category: "SemanticIdentityDefect"
+  language: "typescript"
+  pattern: "MongoDB organization persisted with canonical name Mongodb"
+  context: "Stateless pre-research known-organization hydration"
+
+diagnosis:
+  root_cause: "The bounded MongoDB domain refinement preserved the model-authored display casing even after proving the official MongoDB identity."
+  factors:
+    - "Canonical organization names participate in durable entity identity and should not drift by capitalization"
+    - "The packet otherwise had twelve valid artifacts and six first-party MongoDB sources"
+
+solution:
+  immediate:
+    - "Set the bounded refinement's canonical name to MongoDB"
+  proper:
+    - "Regression-test the observed Mongodb model spelling and assert MongoDB after hydration"
+    - "Guarded-supersede the casing-defective applied packet under the corrected controller"
+  code_change: "controller/stages/stage-runner.ts and tests/stateless-pre-research.test.mts"
+
+verification:
+  - "Focused MongoDB regression passes"
+  - "Full 130-test suite, TypeScript, and build pass"
+  - "Reprocessed packet retains database_data_ai_platform and MongoDB canonical casing"
+
+prevention:
+  - "Known-organization refinements should normalize both taxonomy and canonical brand spelling"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T09:41:00Z"
+  success_rate: 1.0
+  tags: ["pre-research", "identity", "mongodb", "canonicalization"]

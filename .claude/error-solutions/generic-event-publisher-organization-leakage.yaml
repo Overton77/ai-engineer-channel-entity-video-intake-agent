@@ -1,0 +1,46 @@
+id: "generic-event-publisher-organization-leakage"
+created: "2026-08-25T05:15:00Z"
+updated: "2026-08-25T05:30:00Z"
+
+error:
+  type: "runtime"
+  category: "OrganizationIdentityLeakage"
+  language: "typescript"
+  pattern: "A generic event publisher such as AI/ai.engineer is promoted over the speaker's implementation-owning organization"
+  context: "Stateless web-context and organization-research hydration"
+
+diagnosis:
+  root_cause: "Controller hydration trusted a model-authored featured organization unless it was the known Exa search provider; generic names and conference-publisher hosts had no equivalent guard."
+  factors:
+    - "The transcript repeatedly contains the generic token AI, so exact phrase matching alone is not meaningful for the name AI."
+    - "Organization-stage search receipts included both the conference publisher and stronger Weights & Biases first-party results."
+    - "Receipt recovery selected only the first transcript-derived name and did not continue when that name had no resolvable official result."
+    - "Web-context fallback could still emit the event host as a secondary organization after primary selection was fixed."
+
+solution:
+  immediate:
+    - "Do not treat the mechanically valid affected packet as proof-quality output."
+  proper:
+    - "Reject bounded generic organization names and known event-publisher hosts from primary and secondary organization inference."
+    - "Extract speaker-employer candidates from transcript summaries and try every transcript- and query-anchored candidate until an official result resolves."
+    - "Recognize bounded organization-domain aliases such as Weights & Biases to wandb and preserve official documentation subdomains."
+    - "Suppress generic/event identities from web entities and first-party fallback claims."
+  code_change: "Slim-16 fixed primary selection and transcript-derived receipt recovery; slim-17 closed the web-context entity and first-party fallback path."
+
+verification:
+  - "Regression recovers Weights & Biases at https://wandb.ai/ instead of AI at ai.engineer."
+  - "Regression retains https://docs.wandb.ai/weave as first-party technical evidence."
+  - "Regression emits no AI organization entity or first-party ai.engineer resource."
+  - "Slim-17 passes 114 tests, TypeScript, and production build."
+  - "Production deployment dpl_BRhVyhPBkBANqskZDnEaS6u1s7vq is Ready and its generated Cron reports disabled."
+
+prevention:
+  - "Do not use generic domain vocabulary as organization identity evidence."
+  - "Treat conference/event publishers as context unless independently established as the implementation owner."
+  - "Canonically inspect semantic organization identity in addition to packet hashes and schema validity."
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T05:30:00Z"
+  success_rate: 1.0
+  tags: ["organization", "identity", "event-publisher", "ai-engineer", "hydration", "slim-17"]

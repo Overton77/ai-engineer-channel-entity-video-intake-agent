@@ -1,0 +1,41 @@
+id: "review-deferral-stderr-false-positive"
+created: "2026-08-25T06:34:00Z"
+updated: "2026-08-25T06:34:00Z"
+
+error:
+  type: "observability"
+  category: "MisroutedInformationalEvent"
+  language: "javascript"
+  pattern: "A healthy local drain has nonempty stderr containing video_deferred_for_review"
+  context: "Unattended stateless pre-research batch logging"
+
+diagnosis:
+  root_cause: "The expected review_required terminal branch emitted its structured deferral event with console.error even though the batch safely continued."
+  factors:
+    - "The review packet was genuine and did not indicate a controller, provider, storage, or process failure."
+    - "Operators use an empty stderr file as a fast unattended-worker health signal."
+    - "The historical stderr line remains in the current append-only log after source correction."
+
+solution:
+  immediate:
+    - "Inspect the structured event name and confirm the ledger and process still advance before diagnosing a worker failure."
+    - "Do not truncate the historical log or restart a healthy in-flight worker for a logging-only change."
+  proper:
+    - "Emit video_deferred_for_review on stdout."
+    - "Keep invalid arguments, retries, exhausted failures, and unexpected stops on stderr."
+  code_change: "run-all-pre-research-pipelines.mjs routes the expected review deferral through console.log."
+
+verification:
+  - "node --check succeeds for the batch script."
+  - "A regression asserts that review deferrals use console.log and never console.error."
+  - "The active watchdog and worker remain untouched while the source correction waits for a natural child start."
+
+prevention:
+  - "Classify structured batch events by operational severity before choosing stdout or stderr."
+  - "Treat stderr as an alert channel, not as the default destination for all non-applied terminal outcomes."
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T06:34:00Z"
+  success_rate: 1.0
+  tags: ["logging", "stderr", "review-required", "watchdog", "observability"]

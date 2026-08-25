@@ -1,0 +1,41 @@
+id: "ibm-wxflows-parent-domain-shortlink"
+created: "2026-08-25T14:15:00Z"
+updated: "2026-08-25T14:27:00Z"
+
+error:
+  type: "semantic"
+  category: "OrganizationTaxonomy"
+  language: "typescript"
+  pattern: "IBM wxflows implementation packet classified as horizontal_ai_application with ibm.biz as the canonical organization URL"
+  context: "Canonical audit of the slim-56 Roy Derks tool-calling packet"
+
+diagnosis:
+  root_cause: "Hydration preserved a schema-valid generic application domain and the search shortener host even though the transcript identifies IBM as the builder of wxflows and the taxonomy reserves diversified_technology_company for broad parents such as IBM."
+  factors:
+    - "horizontal_ai_application is valid syntax but semantically describes end-user AI applications"
+    - "ibm.biz is an official short-link surface, not IBM's canonical corporate identity URL"
+    - "A community invite short link was admitted as an authoritative organization source"
+
+solution:
+  immediate:
+    - "Preserve IBM as implementation owner because the transcript explicitly says IBM is building and demonstrates wxflows"
+  proper:
+    - "Canonicalize the organization to https://www.ibm.com/"
+    - "Classify IBM as diversified_technology_company with ai_developer_platform_sdk as an evidenced secondary domain"
+    - "Classify the wxflows short link as an official product source and exclude community invite links"
+  code_change: "Add a bounded IBM/wxflows refinement and regression in stage-runner hydration."
+
+verification:
+  - "Regression returns IBM, https://www.ibm.com/, diversified_technology_company, and ai_developer_platform_sdk secondary"
+  - "Regression retains the wxflows product source and excludes the Discord invite"
+  - "Fresh reprocessed packet has twelve hash-matched objects and twelve applied operations"
+
+prevention:
+  - "Classify broad parent companies by durable organizational role rather than a single AI product surface"
+  - "Do not treat branded URL shorteners or community invites as canonical organization identity"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T14:26:36Z"
+  success_rate: 1.0
+  tags: ["pre-research", "taxonomy", "ibm", "wxflows", "canonical-url"]

@@ -27,6 +27,7 @@ function summary(marker: string): RollingTranscriptSummary {
 describe("iterative transcript summarization", () => {
   it("retries transient Gateway transport and TLS-edge failures", () => {
     assert.equal(isRetryableTranscriptError(new Error("read ECONNRESET")), true);
+    assert.equal(isRetryableTranscriptError(new Error("fetch failed")), true);
     assert.equal(isRetryableTranscriptError(new Error("certificate has expired")), true);
     assert.equal(isRetryableTranscriptError(new Error("TRANSCRIPT_SUMMARY_EMPTY")), true);
     assert.equal(isRetryableTranscriptError(new Error("TRANSCRIPT_HASH_MISMATCH")), false);
@@ -59,6 +60,30 @@ describe("iterative transcript summarization", () => {
     assert.equal(seenPrevious[1]?.initial_summary, summary("chunk-0").initial_summary);
     assert.equal(seenPrevious[2]?.initial_summary, summary("chunk-1").initial_summary);
     assert.equal(result.summary.initial_summary, summary("chunk-2").initial_summary);
+  });
+
+  it("recovers omitted evidence excerpts from aliases or exact transcript offsets", async () => {
+    const transcript = "prefix exact transcript evidence suffix";
+    const result = await summarizeTranscriptIteratively({
+      transcript,
+      reducer: async () => ({
+        ...summary("anchors"),
+        evidence_anchors: [{
+          start_character: 7,
+          end_character: 32,
+          supports: "The transcript states the supported claim.",
+          grade: "said_in_transcript",
+        }, {
+          start_character: null,
+          end_character: null,
+          excerpt: "model-authored alias excerpt",
+          supports: "The transcript states another supported claim.",
+          grade: "said_in_transcript",
+        }],
+      } as any),
+    });
+    assert.equal(result.summary.evidence_anchors[0]?.short_excerpt, transcript.slice(7, 32));
+    assert.equal(result.summary.evidence_anchors[1]?.short_excerpt, "model-authored alias excerpt");
   });
 
   it("resumes after the last durable section checkpoint", async () => {

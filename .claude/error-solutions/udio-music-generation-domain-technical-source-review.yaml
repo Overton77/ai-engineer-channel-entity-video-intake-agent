@@ -1,0 +1,42 @@
+id: "udio-music-generation-domain-technical-source-review"
+created: "2026-08-25T11:15:00Z"
+updated: "2026-08-25T12:13:00Z"
+
+error:
+  type: "runtime"
+  category: "SemanticMisclassification"
+  language: "typescript"
+  pattern: "Udio music-generation packet defaulted to other_unknown and lacked a technical first-party source"
+  context: "Stateless pre-research organization hydration and evidence validation"
+
+diagnosis:
+  root_cause: "The first review packet promoted Udio in a multi-tool workshop, retained other_unknown, and returned duplicate homepages; the fresh run correctly found no implementation-owning featured organization."
+  factors:
+    - "The workshop demonstrates Udio alongside Suno, Stable Audio, ElevenLabs, and other tools"
+    - "The authoritative taxonomy assigns generative-media platforms to multimodal_voice_media_ai"
+    - "Strict validation correctly rejected two homepage-only sources as insufficient technical evidence"
+
+solution:
+  immediate:
+    - "Guardedly supersede only the proven defective unapplied review packet after slim-42 local ownership is proven"
+  proper:
+    - "Add a Udio-identity plus music-generation evidence refinement"
+    - "Attach the verified first-party About/product page and prompt-specific Help documentation"
+  code_change: "Slim-42 adds the bounded domain refinement, verified technical sources, and regression without relaxing validation."
+
+verification:
+  - "All 139 tests, TypeScript, and the production build pass"
+  - "Firecrawl verified Udio's About page, prompt help, audio creation help, and product changelog"
+  - "Fresh slim-45 run f20c9533-63de-4ada-acb2-6aff6b7790ac completed all nine stages with eleven hash-matched packet artifacts"
+  - "The current organization packet has zero candidates and conservatively remains review_required with zero apply events"
+  - "The Udio-specific domain/source rule remains bounded and available for a genuinely Udio-primary video"
+
+prevention:
+  - "Preserve technical-source minimums and repair evidence discovery instead of approving homepage-only packets"
+  - "Regression-test media-generation organizations whose primary product surface is consumer-facing"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T12:12:40Z"
+  success_rate: 1.0
+  tags: ["typescript", "pre-research", "organization-domain", "udio", "source-validation"]

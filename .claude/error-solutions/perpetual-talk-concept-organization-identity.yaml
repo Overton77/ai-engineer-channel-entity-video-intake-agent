@@ -1,0 +1,41 @@
+id: "perpetual-talk-concept-organization-identity"
+created: "2026-08-25T12:39:00Z"
+updated: "2026-08-25T13:27:00Z"
+
+error:
+  type: "semantic"
+  category: "OrganizationIdentityMisclassification"
+  language: "typescript"
+  pattern: "Talk concept personality-driven development promoted as an organization despite transcript-explicit employer Perpetual"
+  context: "Canonical audits of slim-45, slim-49, slim-50, and slim-52 packets for lG_8rgQqxfc"
+
+diagnosis:
+  root_cause: "Successive searches promoted a talk concept, omitted temporal lineage from a possible Teammates current identity, and finally accepted an unrelated same-name Perpetual AI company without speaker/product identity proof."
+  factors:
+    - "The transcript says Ben is from/at Perpetual and describes what Perpetual builds"
+    - "Web search did not establish a reliable current official URL for that historical entity"
+    - "Current Teammates first-party results match the same virtual-teammate product and personality-design thesis"
+    - "The perpetualai.ie About page names Tommy Martin and David Hanley as co-founders and describes Vera, not Ben's virtual-teammate product"
+    - "The slim-52 model renamed the candidate to the descriptive alias virtual teammates while retaining perpetualai.ie, bypassing a name-exact rejection"
+
+solution:
+  immediate:
+    - "Reject the talk-concept candidate, or preserve a first-party Teammates current candidate with Perpetual as its video-time name"
+  proper:
+    - "Require both current Teammates identity and transcript-explicit Perpetual plus virtual-teammate product evidence before applying the temporal refinement"
+    - "Reject perpetualai.ie for this transcript regardless of the candidate display name and preserve review_required when no proven current identity remains"
+    - "Guardedly supersede each defective packet only after the correcting source version owns the local drain"
+  code_change: "controller/stages/stage-runner.ts and tests/stateless-pre-research.test.mts"
+
+verification:
+  - "Focused Perpetual identity regression passes"
+  - "Full tests, TypeScript, and production build must pass"
+  - "A Teammates packet must carry Perpetual temporal fields; a perpetualai.ie packet must be rejected into review_required"
+
+prevention:
+  - "Do not accept presentation concepts as organization identities when speaker-employer evidence is explicit"
+
+metadata:
+  occurrences: 4
+  last_resolved: "2026-08-25T13:47:00Z"
+  success_rate: 1.0

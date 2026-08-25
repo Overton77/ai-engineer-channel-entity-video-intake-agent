@@ -1,0 +1,39 @@
+id: "cross-version-stage-input-conflict"
+created: "2026-08-25T02:55:00Z"
+updated: "2026-08-25T02:55:00Z"
+
+error:
+  type: "runtime"
+  category: "ImmutableStageInputConflict"
+  language: "typescript-postgresql"
+  pattern: "A live run started under an older prompt bundle is reclaimed after deployment and its next stage returns STAGE_INPUT_CONFLICT"
+  context: "Stateless pre-research cross-version recovery"
+
+diagnosis:
+  root_cause: "The stage input manifest is immutable and includes prompt-derived input. Loading the run with newer source can produce a different digest, so overwriting the old stage manifest would violate replay safety."
+  factors:
+    - "Cross-version discovery is still necessary so an old live run cannot remain permanently occupied."
+    - "The conflict is detected before a replacement GLM call."
+    - "A failed older-prompt run does not exclude the same video under the current prompt bundle."
+
+solution:
+  immediate:
+    - "Let the incompatible old stage reach its bounded terminal state; do not mutate its stored input manifest."
+    - "Allow canonical eligibility to claim a fresh run under the current prompt bundle."
+  proper:
+    - "Discover live packet-v2 runs across prompt versions, preserve immutable stage inputs, and use prompt-scoped failed-run exclusion so the current version can replace an incompatible run."
+  code_change: "The runner recovers all live packet-v2 runs, while listEligibleVideos excludes failures only for the current prompt version."
+
+verification:
+  - "Old run 0e9a2e5c-ee02-47e7-85bb-e00670d4c4ae terminalized with STAGE_INPUT_CONFLICT without another model call."
+  - "Fresh slim-7 run 1a98a293-bf86-41bc-993e-3091141ed7a9 then completed all nine stages and applied for the same video."
+
+prevention:
+  - "Never overwrite a stage input manifest whose digest differs."
+  - "Keep recovery occupancy packet-schema-scoped and failed-run suppression prompt-version-scoped."
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T02:54:05Z"
+  success_rate: 1.0
+  tags: ["recovery", "prompt-version", "input-manifest", "immutability", "stage-ledger"]

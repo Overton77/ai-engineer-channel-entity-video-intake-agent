@@ -6,9 +6,9 @@
 - Production alias: `https://research-starter-pre-research-agent.vercel.app`
 - Vercel project: `research-starter-pre-research-agent`
 - Vercel scope: `overtons-projects`
-- Schedule: `pre-research-next`, `*/5 * * * *` UTC
+- Schedule: `pre-research-next`; source declares `* * * * *` UTC, while the current Vercel output compiles to the effective `*/5 * * * *` cadence
 - Schedule gate: `PRE_RESEARCH_SCHEDULE_ENABLED`
-- Packet schema: `2.0.0`
+- Packet schema: `2.0.0`; controller/prompt bundle: `pre-research-v3-stateless-slim-62`
 - Packet prefix: `research-ingestion-intents/pre-research/v2/<video_id>/<run_id>/`
 
 The exact deployment ID can change. Resolve it from the production alias instead of copying an old ID.
@@ -34,13 +34,13 @@ Inspect production identity and generated routes:
 npx --yes vercel@latest inspect https://research-starter-pre-research-agent.vercel.app --scope overtons-projects
 ```
 
-Inspect the authenticated Eve health/info contract without creating a session:
+Inspect compact stage execution state (legacy session fields remain visible for old runs):
 
 ```powershell
-node .agents/skills/operate-eve-pre-research/scripts/inspect-deployment.mjs
+node --experimental-strip-types --import ./scripts/register-ts.mjs scripts/inspect-run-session.mjs <run_uuid> --summary
 ```
 
-Expected invariants include `status=ready`, workflow `workflow//eve//workflowEntry`, model `zai/glm-5.2`, and schedule `pre-research-next` with `hasRun=true`.
+Expected invariants include nine ordered stages, metadata-only usage/error fields, immutable input manifest paths, and no new batch session IDs. Omit `--summary` only when the full immutable manifest and artifact-hash detail is needed.
 
 ## Start or continue runs
 
@@ -60,6 +60,8 @@ Then inspect the new production deployment, observe a later normal Cron outcome,
 
 There is no production one-shot dev schedule route. `/eve/v1/dev/schedules/<id>` exists only under `eve dev`; production start/resume is the Vercel Cron path or a deliberately controlled local controller invocation.
 
+Vercel Cron is a wakeup mechanism, not a daemon. Each invocation can disappear after its time limit. A later invocation safely resumes because the authoritative state is the Postgres run/stage ledger and immutable objects under the packet prefix. The v3 automatic controller creates no Eve sessions or sandboxes.
+
 ### Deliberately controlled single run
 
 Use this only when the user wants a manual run and production dispatch has first been paused safely:
@@ -72,17 +74,15 @@ npx --yes vercel@latest deploy --prod --yes --scope overtons-projects
 
 Wait for a Cron outcome of `disabled` and allow up to the 240-second controller budget plus cleanup for an invocation that acquired the advisory lock before the disabling deployment.
 
-Then run one exact durable run against production Eve:
+Then run one exact durable stateless run from the controlled operator environment:
 
 ```powershell
-$env:EVE_URL='https://research-starter-pre-research-agent.vercel.app'
 npm run pipeline:next -- --run-id <run_uuid>
 ```
 
 Or claim one exact qualified video:
 
 ```powershell
-$env:EVE_URL='https://research-starter-pre-research-agent.vercel.app'
 node --experimental-strip-types --import ./scripts/register-ts.mjs scripts/run-pre-research-pipeline.mjs --video-id <video_id>
 ```
 
@@ -91,23 +91,71 @@ node --experimental-strip-types --import ./scripts/register-ts.mjs scripts/run-p
 For a bounded manual batch, retain the same pause/settle boundary and run serially:
 
 ```powershell
-$env:EVE_URL='https://research-starter-pre-research-agent.vercel.app'
 npm run pipeline:all -- --max-videos 2 --max-transient-retries 5
 ```
 
 Never run a second worker concurrently.
 
+For a full time-limited local drain, use:
+
+```powershell
+npm run pipeline:all -- --max-transient-retries 5
+```
+
+The batch discovers every live packet-`2.0.0` recovery across prompt bundles, skips a video only after a current-prompt run exhausts its bounded stage retry series, defers genuine `review_required` packets, and continues in oldest-qualified-video order. The host must remain powered on and awake. If the process exits, run the same command again; it resolves durable live runs before claiming new work. An older run whose immutable input digest is incompatible with current source may terminalize without another model call; prompt-scoped failure exclusion then permits a fresh current-prompt run for that video.
+
+Expected `video_deferred_for_review` events are informational and belong on stdout. Reserve stderr for invalid arguments, transient retry parking, exhausted failures, and unexpected batch stops. Older drain log files may contain historical review-deferral lines on stderr from before this routing correction; inspect the event name before treating a nonempty file as a worker failure.
+
+For an unattended Windows drain, `scripts/watch-local-drain.ps1` can adopt an already-running worker or start one. It holds a Windows system-awake request, gives long local transcript reductions a 30-minute stage lease, and stops after a clean queue-exhausted exit. It restarts a child that exits nonzero. It also treats 40 minutes without a completed-video stdout event as a stalled worker, terminates that worker only after its 30-minute lease is reclaimable, and restarts the drain. Keep production dispatch disabled for its entire lifetime. Override `-StallTimeoutSeconds` only when a known single-video runtime exceeds 40 minutes, and keep it greater than `PRE_RESEARCH_STAGE_LEASE_SECONDS`.
+
+For a source-version handoff during a healthy drain, `scripts/stop-local-worker-after-result.ps1` requests a cooperative stop from one exact worker after one exact video/run pair appears as a durable `video_result`. Pass the validated worker/watchdog PIDs, current stdout path and byte offset, and exact IDs. The worker consumes the PID/video/run-scoped request before its next claim iteration and exits with the watchdog restart code; the script retains a bounded force-stop fallback only for older workers that predate cooperative signaling. It revalidates parentage and command identity before mutation; timeout, identity change, or early worker exit performs no stop. The watchdog then starts exactly one child from current source. Never use a broad process-name kill or stop an in-flight stage merely to load newer source.
+
+If a pre-cooperative boundary fallback already killed a worker after it leased the successor stage, wait for natural lease expiry unless throughput is time-critical. An early release is allowed only for the exact pre-checkpoint empty lease after proving the lease-owning PID is dead, the owner string matches, the stage has no input manifest, no registered or Storage output object, and no intent. Dry-run first, then confirm:
+
+```powershell
+node --experimental-strip-types --import ./scripts/register-ts.mjs scripts/release-orphaned-empty-stage.mts <run_uuid> <stage> --expected-owner <owner> --dead-worker-pid <pid>
+node --experimental-strip-types --import ./scripts/register-ts.mjs scripts/release-orphaned-empty-stage.mts <run_uuid> <stage> --expected-owner <owner> --dead-worker-pid <pid> --confirm
+```
+
+Live packet-`2.0.0` recoveries deliberately cross prompt-bundle versions. A source deployment must not strand an in-flight compatible run merely because newer videos use a new prompt bundle. Failed-run exclusion remains prompt-version-specific; live recovery does not. The database claim function must include the predecessor-completed guard from migration `20260825022000_pre_research_stage_dependency_guard.sql`.
+
+An exact empty-output dead-letter may be requeued only after confirming that no registered or Storage artifact exists for that exact stage:
+
+```powershell
+node --experimental-strip-types --import ./scripts/register-ts.mjs scripts/requeue-empty-stage.mts <run_uuid> <stage> --confirm
+```
+
+Do not use this to overwrite an immutable artifact or to bypass a genuine validation/review outcome.
+
+A `review_required` packet with a proven semantic defect may be reopened only when it remains the exact latest non-finished review, its intent is validated with zero apply events, and no competing run exists. Dry-run first, then confirm with the identical reason:
+
+```powershell
+node --experimental-strip-types --import ./scripts/register-ts.mjs scripts/supersede-review-run.mjs <run_uuid> --reason "<proof-quality audit reason>"
+node --experimental-strip-types --import ./scripts/register-ts.mjs scripts/supersede-review-run.mjs <run_uuid> --reason "<same reason>" --confirm
+```
+
+This rejects only the old unapplied intent, preserves its immutable packet, and lets a fresh current-prompt run be claimed. Never use it to bypass genuine hierarchy ambiguity or a truly organization-less result.
+
+An already-applied packet with a proven semantic defect may be reopened only when it is still the exact latest finished run, its applied intent has all twelve events, and no competing run exists. Dry-run first, then confirm with the same audit reason:
+
+```powershell
+node --experimental-strip-types --import ./scripts/register-ts.mjs scripts/supersede-applied-run.mjs <run_uuid> --reason "<proof-quality audit reason>"
+node --experimental-strip-types --import ./scripts/register-ts.mjs scripts/supersede-applied-run.mjs <run_uuid> --reason "<same reason>" --confirm
+```
+
+This preserves the old immutable packet, intent, and apply events; it marks the run superseded and reopens only the completion projection so the sole worker can create a fresh current-prompt run. Never use it for preference changes or to rewrite historical evidence.
+
 ## View a pipeline run
 
-Inspect compact durable run/session/artifact state:
+Inspect compact durable run/stage/artifact state:
 
 ```powershell
 node --experimental-strip-types --import ./scripts/register-ts.mjs scripts/inspect-run-session.mjs <run_uuid>
 ```
 
-Key fields are run `status`, `artifact_count`, error fields, `latest_session.result_summary.controller_stage`, `delivery_count`, and `eve_session_id`.
+Key fields are run `status`, `artifact_count`, `stage_executions[].status`, `attempt_count`, `retry_after`, input hash/path, artifact hashes, usage, and bounded diagnostics. `latest_session` and Eve IDs are legacy-only.
 
-Inspect the matching Eve event stream read-only:
+Only for a historical legacy run, inspect the matching Eve event stream read-only:
 
 ```powershell
 node scripts/inspect-eve-session.mjs <eve_session_id> https://research-starter-pre-research-agent.vercel.app
@@ -123,7 +171,7 @@ npx --yes vercel@latest logs --project research-starter-pre-research-agent --env
 
 In the Vercel UI, use **Settings → Cron Jobs** for discovery, **Observability → Cron Jobs** for delivery history, **Observability → Logs** filtered by `[pre-research-schedule]` for outcomes, and **Observability → Agent Runs** when enabled for Eve session traces.
 
-An isolated `overlap_skipped`, provider HTTP 503, terminated stream, 403 page, redirect, or controller `waiting` result is recoverable. Escalate only after durable state stops advancing across several eligible ticks.
+An isolated `overlap_skipped`, provider HTTP 503/429, terminated stream, or `retry_wait` stage is recoverable. Escalate only after ledger and artifact state stop advancing across several eligible ticks.
 
 ## Verify a completed run
 
@@ -138,7 +186,7 @@ A complete automatic result has `run_status=applied`, `intent_status=applied`, `
 Inspect genuine review items separately:
 
 ```powershell
-node --experimental-strip-types --import ./scripts/register-ts.mjs scripts/inspect-review-required.mjs
+node --experimental-strip-types --import ./scripts/register-ts.mjs scripts/inspect-review-required.mjs <run_uuid>
 ```
 
 ## Interact with the deployed Eve app
@@ -151,7 +199,7 @@ npx eve dev https://research-starter-pre-research-agent.vercel.app
 
 Run `/vc:login` if Vercel OIDC access needs refreshing. Use `/help` for TUI controls and `/exit` to disconnect. Remote TUI connection does not alter the local Vercel link or `.env.local`.
 
-Do not use a new conversational session as a substitute for the pipeline controller. The controller creates stage-scoped sessions with trusted run metadata and tool boundaries. To interact with an existing pipeline stage, prefer read-only stream inspection and let the controller resume it.
+Do not use a new conversational session as a substitute for the pipeline controller. The batch controller is stateless and uses leased Postgres stage rows plus immutable Storage inputs; operator conversations are entirely separate.
 
 The wire-level deployment interfaces are:
 

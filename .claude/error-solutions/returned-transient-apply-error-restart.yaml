@@ -1,0 +1,38 @@
+id: "returned-transient-apply-error-restart"
+created: "2026-08-25T03:13:00Z"
+updated: "2026-08-25T03:13:00Z"
+
+error:
+  type: "runtime"
+  category: "ReturnedTransientNotRetried"
+  language: "javascript-typescript"
+  pattern: "A pipeline returns error=fetch failed at intent_ready; the batch exits even though the same classifier retries an equivalent thrown error"
+  context: "Local stateless pre-research drain"
+
+diagnosis:
+  root_cause: "The batch transient-retry branch wrapped only exceptions thrown by runPreResearchPipeline. Durable controller returns containing a retryable error were evaluated later by the generic unfinished-result stop branch."
+  factors:
+    - "All eleven packet artifacts were already registered, so no model work was lost."
+    - "The watchdog restarted after 15 seconds and the recovered intent applied successfully."
+
+solution:
+  immediate:
+    - "Resume the intent_ready run from the durable ledger; do not rerun model stages."
+  proper:
+    - "Route both thrown errors and claimed pipeline results with retryable error strings through one parkTransientRetry helper before counting a video as completed."
+  code_change: "run-all-pre-research-pipelines.mjs now refreshes the recovery queue and delays in-process for either transient return path."
+
+verification:
+  - "Run 706fd970-1cee-49b5-a890-1ece0403659f recovered with zero stage receipts and applied."
+  - "fetch failed is covered by the retry-classifier test."
+  - "All 106 tests, TypeScript, and the production build pass."
+
+prevention:
+  - "Keep exception and durable-error return classification behavior identical."
+  - "Retry before appending an unfinished transient result to the completed batch list."
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T03:12:02Z"
+  success_rate: 1.0
+  tags: ["fetch", "apply", "retry", "watchdog", "durable-recovery"]

@@ -1,0 +1,35 @@
+id: "cohere-frontier-model-lab-domain-misclassification"
+created: "2026-08-25T13:08:00Z"
+updated: "2026-08-25T13:08:00Z"
+
+error:
+  type: "semantic"
+  category: "OrganizationDomainMisclassification"
+  language: "typescript"
+  pattern: "Cohere enterprise foundation-model organization classified as horizontal_ai_application"
+  context: "Canonical audit of slim-49 run 0e29f9b2-cbd5-4db6-b593-6f3ee99522ba"
+
+diagnosis:
+  root_cause: "The schema-valid generic application label survived hydration even though the authoritative taxonomy explicitly lists Cohere as a frontier model lab."
+  factors:
+    - "The talk and six first-party sources establish Cohere identity"
+    - "The transcript covers Cohere enterprise LLMs, Command models, and North"
+
+solution:
+  immediate:
+    - "Add a Cohere identity plus foundation/language-model evidence refinement"
+  proper:
+    - "Preserve frontier_model_lab as Cohere's durable organization role even when the featured implementation is an agent product"
+  code_change: "controller/stages/stage-runner.ts and tests/stateless-pre-research.test.mts"
+
+verification:
+  - "Focused Cohere regression passes"
+  - "Fresh packet must classify Cohere as frontier_model_lab"
+
+prevention:
+  - "Apply explicit authoritative taxonomy examples before accepting generic organization-domain enums"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T13:32:00Z"
+  success_rate: 1.0

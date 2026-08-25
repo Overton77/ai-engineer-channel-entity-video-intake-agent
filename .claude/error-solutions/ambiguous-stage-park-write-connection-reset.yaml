@@ -1,0 +1,42 @@
+id: "ambiguous-stage-park-write-connection-reset"
+created: "2026-08-25T07:35:00Z"
+updated: "2026-08-25T07:35:00Z"
+
+error:
+  type: "network"
+  category: "AmbiguousDatabaseWrite"
+  language: "typescript"
+  pattern: "A retryable stage error is followed by ECONNRESET while park_pre_research_stage writes the retry state"
+  context: "Deadline-free local stateless pre-research drain with a 30-minute stage lease"
+
+diagnosis:
+  root_cause: "The stage runner classified the original error correctly, but the single ledger park RPC could itself lose its database connection. Because the RPC result was ambiguous and the error escaped, the execution row could remain leased until expiry even though no artifact was written."
+  factors:
+    - "Local runs intentionally use a long lease to protect slow GLM reductions."
+    - "Postgres transport can reset before or after the server commits the park RPC."
+    - "The park RPC rejects a repeated lease token after a successful commit, so blind retries are unsafe."
+
+solution:
+  immediate:
+    - "Leave the already-leased run for authoritative lease expiry; do not mutate a live lease without its token."
+  proper:
+    - "Retry the park write at most three times only for transport ambiguity."
+    - "After every ambiguous result or STAGE_LEASE_INVALID, read the stage row and accept success only when status, cleared lease fields, error code, and bounded error detail exactly match the intended park operation."
+  code_change: "controller/stages/ledger.ts adds settleAmbiguousLedgerWrite and uses it around park_pre_research_stage; controller bundle advances to slim-23."
+
+verification:
+  - "Regression simulates ECONNRESET followed by STAGE_LEASE_INVALID and succeeds only after exact state verification."
+  - "Full 122-test suite passes."
+  - "TypeScript typecheck passes."
+  - "Production build passes."
+
+prevention:
+  - "Treat state-changing RPC transport failures as ambiguous writes, not definite failures."
+  - "Use write-or-prove semantics instead of blind retries for lease-token mutations."
+  - "Keep production and local dispatch mutually exclusive during recovery."
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T07:35:00Z"
+  success_rate: 1.0
+  tags: ["postgres", "econnreset", "lease", "idempotency", "stateless-controller", "slim-23"]

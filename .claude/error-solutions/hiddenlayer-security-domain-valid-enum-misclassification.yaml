@@ -1,0 +1,40 @@
+id: "hiddenlayer-security-domain-valid-enum-misclassification"
+created: "2026-08-25T10:20:26Z"
+updated: "2026-08-25T10:20:26Z"
+
+error:
+  type: "runtime"
+  category: "SemanticMisclassification"
+  language: "typescript"
+  pattern: "HiddenLayer ML-security packet classified as horizontal_ai_application"
+  context: "Stateless pre-research organization hydration"
+
+diagnosis:
+  root_cause: "Hydration preserved GLM's schema-valid horizontal_ai_application enum even though HiddenLayer and the transcript were explicitly centered on ML security."
+  factors:
+    - "A valid enum bypasses generic fallback inference"
+    - "The authoritative taxonomy assigns AI security vendors to ai_security_identity_governance"
+    - "The applied packet was mechanically healthy, isolating the defect to semantic domain choice"
+
+solution:
+  immediate:
+    - "Guardedly supersede only the proven defective applied packet"
+  proper:
+    - "Add a bounded HiddenLayer refinement requiring official identity plus explicit ML/model-security evidence"
+    - "Normalize the canonical brand spelling to HiddenLayer"
+  code_change: "Slim-34 adds the bounded refinement and regression."
+
+verification:
+  - "All 132 tests, TypeScript, and build pass"
+  - "Reprocessed packet has twelve hash-matched artifacts and twelve applied operations"
+  - "Canonical result records HiddenLayer as an independent ai_security_identity_governance organization"
+
+prevention:
+  - "Audit schema-valid organization domains against transcript semantics and the authoritative taxonomy"
+  - "Regression-test known brands using observed model casing and wrong-but-valid enums"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T10:20:26Z"
+  success_rate: 1.0
+  tags: ["typescript", "pre-research", "organization-domain", "security", "hiddenlayer"]

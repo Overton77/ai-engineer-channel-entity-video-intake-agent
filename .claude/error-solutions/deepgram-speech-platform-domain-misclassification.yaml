@@ -1,0 +1,39 @@
+id: "deepgram-speech-platform-domain-misclassification"
+created: "2026-08-25T11:07:00Z"
+updated: "2026-08-25T12:09:00Z"
+
+error:
+  type: "runtime"
+  category: "SemanticMisclassification"
+  language: "typescript"
+  pattern: "Deepgram speech recognition and TTS platform classified as generic developer SDK"
+  context: "Stateless pre-research organization hydration"
+
+diagnosis:
+  root_cause: "Hydration preserved ai_developer_platform_sdk even though Deepgram's defining organization domain is audio, speech, and voice AI."
+  factors:
+    - "The transcript explicitly identifies Deepgram as an audio AI company"
+    - "Its implementation includes end-to-end speech recognition, STT, and TTS"
+    - "The authoritative taxonomy assigns voice/speech/audio platforms to multimodal_voice_media_ai"
+
+solution:
+  immediate:
+    - "Guardedly supersede only the proven defective Deepgram packet after slim-40 local ownership is proven"
+  proper:
+    - "Add a Deepgram-identity refinement requiring audio AI, voice AI, speech recognition, STT, or TTS evidence"
+  code_change: "Slim-40 adds the bounded multimodal_voice_media_ai refinement and regression."
+
+verification:
+  - "All 138 tests, TypeScript, and the production build pass"
+  - "Fresh slim-45 run ba9f2819-e302-4b80-ad39-f6e7b09c2693 applied with twelve hash-matched artifacts and twelve operations"
+  - "Canonical verification identifies Deepgram as independent with multimodal_voice_media_ai and six first-party organization sources"
+
+prevention:
+  - "Classify a platform by its durable organization domain, not merely its developer-facing delivery surface"
+  - "Regression-test voice-native organizations that expose APIs and SDKs"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T12:08:46Z"
+  success_rate: 1.0
+  tags: ["typescript", "pre-research", "organization-domain", "deepgram", "voice-ai"]

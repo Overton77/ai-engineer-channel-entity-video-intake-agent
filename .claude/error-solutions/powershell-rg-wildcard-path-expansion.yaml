@@ -1,0 +1,33 @@
+id: "powershell-rg-wildcard-path-expansion"
+created: "2026-08-25T12:55:00Z"
+updated: "2026-08-25T12:55:00Z"
+
+error:
+  type: "runtime"
+  category: "InvalidPathSyntax"
+  language: "powershell"
+  pattern: "rg: path-with-wildcard: The filename, directory name, or volume label syntax is incorrect"
+  context: "Inspecting Firecrawl output files on Windows"
+
+diagnosis:
+  root_cause: "PowerShell passed the wildcard-containing path literally to ripgrep, and ripgrep's Windows path parser rejected it."
+  factors:
+    - "The wildcard appeared in a positional path rather than a ripgrep --glob filter"
+
+solution:
+  immediate:
+    - "Search the containing directory and use --glob to filter filenames"
+  proper:
+    - "Use: rg <pattern> .firecrawl --glob 'teammates-*.md'"
+  code_change: null
+
+verification:
+  - "The corrected command traverses .firecrawl without an invalid-path error"
+
+prevention:
+  - "Use ripgrep glob filters instead of wildcard positional paths on Windows"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T12:55:00Z"
+  success_rate: 1.0

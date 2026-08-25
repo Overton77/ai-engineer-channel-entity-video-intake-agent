@@ -1,0 +1,41 @@
+id: "github-parent-hierarchy-flattened"
+created: "2026-08-25T08:54:00Z"
+updated: "2026-08-25T08:54:00Z"
+
+error:
+  type: "runtime"
+  category: "SemanticHierarchyDefect"
+  language: "typescript"
+  pattern: "GitHub Copilot packet records GitHub as independent_company with no Microsoft parent"
+  context: "Stateless pre-research organization hydration for a GitHub Copilot talk"
+
+diagnosis:
+  root_cause: "The known-organization refinement handled Azure AI, then defaulted every other featured organization to independent_company with null parent fields. This discarded GitHub's required Microsoft parent relationship."
+  factors:
+    - "The slim model intentionally does not own final hierarchy fields"
+    - "Controller hydration lacked the authoritative GitHub/Microsoft refinement"
+    - "Mechanical packet validation cannot prove organization hierarchy correctness"
+
+solution:
+  immediate:
+    - "Add a bounded GitHub refinement when transcript evidence names GitHub and the featured name or host is GitHub-owned"
+    - "Keep GitHub primary, set scope subsidiary, parent Microsoft, and domain coding_agents_developer_tools"
+  proper:
+    - "Regression-test the exact GitHub Copilot/Microsoft hierarchy required by PRE_RESEARCH_V2_IMPLEMENTATION_PLAN.md"
+    - "Guarded-supersede the defective immutable applied run only after deploying and handing local ownership to the fixed bundle"
+  code_change: "controller/stages/stage-runner.ts and tests/stateless-pre-research.test.mts"
+
+verification:
+  - "Focused stateless topology test passes"
+  - "Full 126-test suite, TypeScript, and production build pass"
+  - "Reprocessed packet must show GitHub primary, subsidiary scope, Microsoft parent, twelve objects, and twelve applied operations"
+
+prevention:
+  - "Add bounded controller refinements for hierarchy examples explicitly required by the authoritative implementation plan"
+  - "Semantically inspect primary scope and parent fields on representative organization packets"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T08:54:00Z"
+  success_rate: 1.0
+  tags: ["pre-research", "organization", "github", "microsoft", "hierarchy"]

@@ -1,0 +1,39 @@
+id: "empty-lifecycle-terminal-hydration"
+created: "2026-08-25T04:31:00Z"
+updated: "2026-08-25T04:31:00Z"
+
+error:
+  type: "schema"
+  category: "ControllerHydrationGap"
+  language: "typescript-zod"
+  pattern: "transcript_taxonomy terminalizes with lifecycle_stages too_small after model-facing schema accepted an empty array"
+  context: "Slim taxonomy hydration into the strict v2 packet"
+
+diagnosis:
+  root_cause: "The model-facing taxonomy schema deliberately allowed an empty lifecycle list, but hydrateTaxonomyOutput forwarded that empty list to the stored packet schema, which requires one through seven lifecycle stages."
+  factors:
+    - "Run 31624443-5f20-46b3-895b-7a67949f48ea failed with zero artifacts under slim-13."
+    - "This was deterministic controller validation, not evidence that the video was unqualified."
+
+solution:
+  immediate:
+    - "Version the prompt bundle so prompt-scoped failure exclusion permits a fresh corrected run."
+  proper:
+    - "Default only an empty hydrated lifecycle list to implementation while preserving every nonempty normalized model value."
+  code_change: "Slim-14 defaults an empty lifecycleStages array inside hydrateTaxonomyOutput."
+
+verification:
+  - "A unit test covers explicit empty lifecycle input."
+  - "All 112 tests, TypeScript, and the production build pass."
+  - "Production deployment dpl_82y4onDH88te3cV2MMy4RQ7D3Af4 is Ready and its Cron returns HTTP 200 with status disabled."
+  - "Fresh slim-14 run 6ce13794-4c18-4218-884f-d73247d49b9e for the same video completed all nine stages on attempt 1 and applied."
+
+prevention:
+  - "For every relaxed model-facing field, test the strict hydration boundary at its empty/default case."
+  - "Treat deterministic hydration failures as controller defects, not video defects."
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T04:30:19Z"
+  success_rate: 1.0
+  tags: ["taxonomy", "lifecycle", "hydration", "zod", "terminal", "slim-14"]

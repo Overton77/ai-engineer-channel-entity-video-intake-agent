@@ -1,21 +1,14 @@
-import { PACKET_SCHEMA_VERSION } from "../contracts/enums";
+import { PACKET_SCHEMA_VERSION, PROMPT_BUNDLE_VERSION } from "../contracts/enums";
 import { getPostgresPool } from "../executor/postgres";
 import { runPreResearchPipeline, type PipelineResult } from "./pre-research-pipeline";
 
-const SCHEDULER_LOCK_NAME = "pre-research-v2-scheduled-dispatch";
+const SCHEDULER_LOCK_NAME = "pre-research-v3-stateless-scheduled-dispatch";
 const DEFAULT_RETRY_COOLDOWN_MINUTES = 10;
 const DEFAULT_INVOCATION_BUDGET_MS = 240_000;
 
 export type ScheduledPreResearchResult =
   | { status: "disabled" | "overlap_skipped" }
   | { status: "completed"; resumed_run_id: string | null; result: PipelineResult };
-
-function deployedEveUrl(): string | undefined {
-  if (process.env.EVE_URL?.trim()) return process.env.EVE_URL.trim();
-  const host = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim()
-    || process.env.VERCEL_URL?.trim();
-  return host ? `https://${host.replace(/^https?:\/\//, "").replace(/\/$/, "")}` : undefined;
-}
 
 export function scheduledRetryCooldownMinutes(
   raw = process.env.PRE_RESEARCH_SCHEDULE_RETRY_COOLDOWN_MINUTES,
@@ -64,6 +57,21 @@ async function oldestReadyRecoverableRunId(): Promise<string | null> {
            where o.bucket_id = v.transcript_bucket and o.name = v.transcript_path
         )
         and not coalesce(s.pre_research_pipeline_finished, false)
+        and (
+          not exists (
+            select 1 from public.research_pre_research_stage_execution e
+             where e.run_id = r.run_id
+          )
+          or exists (
+            select 1 from public.research_pre_research_stage_execution e
+             where e.run_id = r.run_id
+               and (
+                 e.status = 'pending'
+                 or (e.status = 'retry_wait' and coalesce(e.retry_after, '-infinity') <= now())
+                 or (e.status = 'leased' and e.lease_expires_at <= now())
+               )
+          )
+        )
         and coalesce(r.updated_at, r.created_at) <= now() - make_interval(mins => $3::int)
       order by coalesce(r.updated_at, r.created_at) asc, r.created_at asc, r.run_id
       limit 1`,
@@ -101,11 +109,21 @@ async function nextClaimableVideoId(): Promise<string | null> {
              and r.transcript_sha256 = encode(extensions.digest(v.transcript_text, 'sha256'), 'hex')
              and r.status::text = any($2::text[])
         )
+        and not exists (
+          select 1
+            from public.research_pre_research_run prior
+           where prior.video_id = v.video_id
+             and prior.packet_schema_version = $1
+             and prior.prompt_bundle_version = $3
+             and prior.transcript_sha256 = encode(extensions.digest(v.transcript_text, 'sha256'), 'hex')
+             and prior.status = 'failed'
+        )
       order by v.published_at asc nulls last, v.video_id
       limit 1`,
     [
       PACKET_SCHEMA_VERSION,
       ["queued", "claimed", "analyzing", "research_complete", "synthesizing", "intent_ready", "review_required", "applying", "applied"],
+      PROMPT_BUNDLE_VERSION,
     ],
   );
   return rows[0]?.video_id ?? null;
@@ -147,7 +165,6 @@ export async function runScheduledPreResearchOnce(): Promise<ScheduledPreResearc
     const result = resumedRunId || videoId
       ? await runPreResearchPipeline({
           ...(resumedRunId ? { runId: resumedRunId } : { videoId: videoId! }),
-          eveUrl: deployedEveUrl(),
           deadlineAtMs: invocationDeadlineAtMs,
         })
       : {

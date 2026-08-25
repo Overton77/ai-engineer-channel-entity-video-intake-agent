@@ -1,0 +1,35 @@
+id: "conway-talk-openai-context-promotion"
+created: "2026-08-25T13:18:00Z"
+updated: "2026-08-25T13:18:00Z"
+
+error:
+  type: "semantic"
+  category: "OrganizationIdentityMisclassification"
+  language: "typescript"
+  pattern: "OpenAI promoted as implementation owner from a Model Spec citation in a conceptual organizational-agent talk"
+  context: "Canonical audit of slim-52 run d7ada35a-0fa0-4499-9cd4-641d8136a74d"
+
+diagnosis:
+  root_cause: "A supporting vendor source was promoted when the independent speaker's conceptual talk had no implementation-owning organization."
+  factors:
+    - "The talk centers on reverse Conway's law and speculative organizational effects"
+    - "OpenAI Model Spec is cited as guardrail/code-of-conduct context, not as the featured implementation"
+
+solution:
+  immediate:
+    - "Drop the OpenAI candidate for the bounded reverse-Conway organizational-agent pattern"
+  proper:
+    - "Return review_required with no primary rather than promoting a supporting model vendor"
+  code_change: "controller/stages/stage-runner.ts and tests/stateless-pre-research.test.mts"
+
+verification:
+  - "Focused Conway/OpenAI regression passes"
+  - "Fresh packet must remain zero-apply review_required with no primary organization"
+
+prevention:
+  - "Supporting governance/model sources do not outrank the absence of an implementation-owning speaker organization"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T13:41:00Z"
+  success_rate: 1.0

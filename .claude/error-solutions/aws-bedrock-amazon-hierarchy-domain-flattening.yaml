@@ -1,0 +1,39 @@
+id: "aws-bedrock-amazon-hierarchy-domain-flattening"
+created: "2026-08-25T12:27:00Z"
+updated: "2026-08-25T12:43:18Z"
+
+error:
+  type: "semantic"
+  category: "OrganizationHierarchyMisclassification"
+  language: "typescript"
+  pattern: "AWS Bedrock implementation flattened to independent Amazon horizontal application"
+  context: "Canonical audit of Claude plays Minecraft slim-45 packet"
+
+diagnosis:
+  root_cause: "A schema-valid broad parent candidate bypassed an AWS/Bedrock-specific unit and cloud-domain refinement."
+  factors:
+    - "The presenter is an AWS Developer Advocate"
+    - "The implementation is Amazon Bedrock and Agents for Amazon Bedrock"
+    - "The official organization surface is docs.aws.amazon.com"
+
+solution:
+  immediate:
+    - "Add an AWS plus Bedrock evidence refinement"
+  proper:
+    - "Record AWS as a division, Amazon as parent, and cloud_ai_platform as the organization domain"
+    - "Keep the rule bounded to AWS official hosts and Bedrock/AWS-presenter transcript evidence"
+  code_change: "Slim-46 adds the bounded hierarchy/domain refinement and regression."
+
+verification:
+  - "Focused AWS Bedrock regression and all 146 current tests pass"
+  - "Fresh run b45c11b8-5be4-449c-ade0-1dd4a7b1bd9a applied twelve hash-matched artifacts and twelve operations"
+  - "Canonical result records AWS as a division, Amazon as parent, Bedrock official URL, and cloud_ai_platform"
+
+prevention:
+  - "Prefer an evidenced cloud division over a diversified parent for the division's managed AI platform"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T12:43:18Z"
+  success_rate: 1.0
+  tags: ["organization-hierarchy", "aws", "amazon-bedrock", "cloud-ai-platform"]

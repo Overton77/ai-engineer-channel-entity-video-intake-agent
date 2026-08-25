@@ -1,0 +1,37 @@
+id: "semianalysis-media-domain-misclassification"
+created: "2026-08-25T11:22:00Z"
+updated: "2026-08-25T12:16:00Z"
+
+error:
+  type: "runtime"
+  category: "SemanticMisclassification"
+  language: "typescript"
+  pattern: "SemiAnalysis research publication classified as horizontal_ai_application"
+  context: "Stateless pre-research organization hydration"
+
+diagnosis:
+  root_cause: "Hydration preserved a generic application enum even though SemiAnalysis is the evidenced AI research, analysis, and newsletter organization."
+  factors:
+    - "Six stored sources correctly belong to SemiAnalysis/newsletter/InferenceX"
+    - "The authoritative taxonomy assigns AI media and education organizations to ai_community_education_media"
+
+solution:
+  immediate:
+    - "Guardedly supersede only the proven defective applied packet after slim-43 ownership"
+  proper:
+    - "Add a SemiAnalysis identity plus research/analysis/newsletter evidence refinement"
+  code_change: "Slim-43 normalizes SemiAnalysis casing and assigns ai_community_education_media."
+
+verification:
+  - "All 140 tests, TypeScript, and the production build pass"
+  - "Fresh slim-45 run c6e7cf20-4880-42ed-a269-2e5503a5f9c0 applied with twelve hash-matched artifacts and twelve operations"
+  - "Canonical verification identifies canonical SemiAnalysis casing, independent scope, ai_community_education_media, and six organization sources"
+
+prevention:
+  - "Distinguish AI research/media organizations from AI-native end-user applications"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T12:15:43Z"
+  success_rate: 1.0
+  tags: ["typescript", "pre-research", "organization-domain", "semianalysis", "media"]

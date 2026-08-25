@@ -1,0 +1,38 @@
+id: "taxonomy-rationale-object-retry"
+created: "2026-08-25T04:01:00Z"
+updated: "2026-08-25T04:01:00Z"
+
+error:
+  type: "schema"
+  category: "ModelShapeDrift"
+  language: "typescript-zod"
+  pattern: "transcript_taxonomy retries with expected string, received object at path rationale"
+  context: "Slim GLM taxonomy normalization"
+
+diagnosis:
+  root_cause: "The taxonomy preprocessor normalized nested primary rationale but passed a top-level object-shaped rationale through unchanged. The stored packet needs text, but GLM consistently used an object wrapper on several videos."
+  factors:
+    - "Successful second attempts cleared last_error_detail from the stage row, hiding the recurring shape until receipts retained redacted detail."
+    - "The model content was usable; only its wrapper shape differed."
+
+solution:
+  immediate:
+    - "Preserve the successful attempt-2 packet and normalize future object-shaped rationale values."
+  proper:
+    - "Extract rationale, summary, explanation, reason, or text from an object and bound the normalized text to the packet's 1,200-character limit."
+  code_change: "Slim-11 adds modelRationaleText to taxonomyOutputSchema preprocessing."
+
+verification:
+  - "Receipt for e0f61584-d852-4469-803a-d3c817cf788c exposed the exact invalid_type detail."
+  - "Slim-11 canary 152deddb-9723-4a2b-b811-29463c853681 completed transcript_taxonomy on attempt 1 and applied."
+  - "All 109 tests, TypeScript, and the production build pass."
+
+prevention:
+  - "Keep redacted retry detail in live receipts even when a later attempt succeeds."
+  - "Normalize common semantic wrappers at the model boundary while keeping the stored packet schema strict."
+
+metadata:
+  occurrences: 4
+  last_resolved: "2026-08-25T04:00:32Z"
+  success_rate: 1.0
+  tags: ["taxonomy", "rationale", "zod", "normalization", "retry", "glm"]

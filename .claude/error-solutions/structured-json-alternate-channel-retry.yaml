@@ -1,0 +1,41 @@
+id: "structured-json-alternate-channel-retry"
+created: "2026-08-25T04:19:00Z"
+updated: "2026-08-25T04:19:00Z"
+
+error:
+  type: "structured-output"
+  category: "AlternateResponseChannel"
+  language: "typescript-ai-sdk"
+  pattern: "STAGE_STRUCTURED_OUTPUT_INVALID: STAGE_JSON_NOT_FOUND after a long GLM generation"
+  context: "Slim stateless web-context generation"
+
+diagnosis:
+  root_cause: "The stage parser inspected only AI SDK result.text. AI SDK 7 also exposes reasoningText and per-step text/reasoningText; GLM can occasionally leave the only JSON candidate outside the final text channel. The controller discarded those already-paid response channels and repeated the entire model stage."
+  factors:
+    - "The failed bjNYEc908oQ web-context attempt consumed 208,756 ms before reporting no JSON."
+    - "A bounded second model attempt succeeded in 49,181 ms, so retry safety worked but wasted latency and credits."
+    - "Failure receipts did not preserve model token usage, making the exact wasted token count unavailable."
+
+solution:
+  immediate:
+    - "Let the bounded retry complete the live slim-11 run; it applied successfully."
+  proper:
+    - "Try unique final text, final reasoning text, and reverse-ordered per-step text/reasoning candidates locally."
+    - "Accept a candidate only after JSON extraction/repair and the exact stage Zod schema both succeed."
+  code_change: "Slim-13 includes structuredResponseCandidates and performs local candidate recovery before raising a retryable structured-output error."
+
+verification:
+  - "A unit test proves alternate response candidates are deduplicated and ordered deterministically."
+  - "All 110 tests, TypeScript, and the production build pass."
+  - "Production deployment dpl_AQRojJQqLH7NLm17P6cwzLbTyHak is Ready and its Cron returns HTTP 200 with status disabled."
+
+prevention:
+  - "Inspect all already-paid SDK response channels before issuing another model generation."
+  - "Keep strict packet schema validation as the acceptance boundary."
+  - "Do not interrupt a healthy leased local stage merely to load this optimization; the watchdog loads current source on its next child start."
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T04:19:00Z"
+  success_rate: 1.0
+  tags: ["glm", "json", "ai-sdk", "reasoning", "retry", "cost", "slim-12"]

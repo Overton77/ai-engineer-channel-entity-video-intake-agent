@@ -1,0 +1,41 @@
+id: "mongodb-domain-valid-enum-misclassification"
+created: "2026-08-25T09:25:00Z"
+updated: "2026-08-25T09:25:00Z"
+
+error:
+  type: "runtime"
+  category: "SemanticTaxonomyDefect"
+  language: "typescript"
+  pattern: "MongoDB Atlas Vector Search packet classified as horizontal_ai_application"
+  context: "Stateless pre-research organization-domain hydration"
+
+diagnosis:
+  root_cause: "Controller hydration preserves schema-valid model domain enums, so the generic database-name inference cannot correct horizontal_ai_application for MongoDB."
+  factors:
+    - "The authoritative taxonomy explicitly lists MongoDB under database_data_ai_platform"
+    - "horizontal_ai_application is syntactically valid but semantically reserved for end-user applications"
+    - "The unrelated-looking 4149 global entity was verified as an actual transcript mention and was not part of MongoDB's organization profile"
+
+solution:
+  immediate:
+    - "Add a bounded MongoDB refinement requiring its official host/name plus MongoDB, Atlas Vector Search, or document-model transcript evidence"
+    - "Set primary_domain_code to database_data_ai_platform while preserving independent-company identity"
+  proper:
+    - "Regression-test a valid-but-wrong model enum rather than only unknown-domain fallback"
+    - "Guarded-supersede the old applied packet after slim-29 owns the local drain"
+  code_change: "controller/stages/stage-runner.ts and tests/stateless-pre-research.test.mts"
+
+verification:
+  - "Focused topology regression passes"
+  - "Full 128-test suite, TypeScript, and production build pass"
+  - "Reprocessed packet must show database_data_ai_platform, twelve objects, and twelve applied operations"
+
+prevention:
+  - "Audit representative organization domains against the precise implementation-plan inclusion rules"
+  - "Trace suspicious global entities back to raw transcript evidence before filtering them"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T09:25:00Z"
+  success_rate: 1.0
+  tags: ["pre-research", "taxonomy", "mongodb", "database-platform"]

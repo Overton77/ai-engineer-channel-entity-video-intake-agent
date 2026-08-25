@@ -1,0 +1,41 @@
+id: "substrate-api-domain-misclassification"
+created: "2026-08-25T09:04:00Z"
+updated: "2026-08-25T09:04:00Z"
+
+error:
+  type: "runtime"
+  category: "SemanticTaxonomyDefect"
+  language: "typescript"
+  pattern: "Substrate modular AI API packet classified as horizontal_ai_application"
+  context: "Stateless pre-research organization-domain hydration"
+
+diagnosis:
+  root_cause: "Hydration preserves a schema-valid model domain, so the generic fallback inference never corrected horizontal_ai_application even though Substrate is an API/SDK/developer platform."
+  factors:
+    - "horizontal_ai_application is valid syntax but wrong semantics for a developer API"
+    - "The first attempted fix changed only inferOrganizationDomain and the regression correctly remained red"
+    - "The authoritative taxonomy assigns broad APIs, SDKs, and developer platforms to ai_developer_platform_sdk"
+
+solution:
+  immediate:
+    - "Add a bounded Substrate refinement requiring its official host/name plus transcript evidence for API, SDK, modular AI, or computation graphs"
+    - "Set primary_domain_code to ai_developer_platform_sdk while preserving independent-company identity"
+  proper:
+    - "Keep the generic fallback for receipt-recovered Substrate identities and the explicit refinement for valid-but-wrong model domains"
+    - "Guarded-supersede the old applied packet after deploying and handing ownership to the corrected bundle"
+  code_change: "controller/stages/stage-runner.ts and tests/stateless-pre-research.test.mts"
+
+verification:
+  - "Regression fails with fallback-only change and passes with bounded refinement"
+  - "Full 127-test suite, TypeScript, and production build pass"
+  - "Reprocessed packet must show ai_developer_platform_sdk, twelve objects, and twelve applied operations"
+
+prevention:
+  - "Test valid-but-semantically-wrong model enum outputs, not only unknown enum fallbacks"
+  - "Audit organization domains against the precise inclusion rules in PRE_RESEARCH_V2_IMPLEMENTATION_PLAN.md"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T09:04:00Z"
+  success_rate: 1.0
+  tags: ["pre-research", "taxonomy", "substrate", "developer-platform"]

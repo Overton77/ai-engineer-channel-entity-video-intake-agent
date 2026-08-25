@@ -1,0 +1,42 @@
+id: "discussed-organization-outranks-speaker-company"
+created: "2026-08-25T05:58:00Z"
+updated: "2026-08-25T05:58:00Z"
+
+error:
+  type: "runtime"
+  category: "OrganizationIdentityPrecedence"
+  language: "typescript"
+  pattern: "A prominently discussed organization is promoted over the transcript-anchored founder or executive employer"
+  context: "Stateless organization-research hydration"
+
+diagnosis:
+  root_cause: "Receipt recovery evaluated model-authored candidate names before transcript-derived founder/CEO organizations, so the first resolvable discussed company could win even when official receipts established the speaker's implementation-owning company."
+  factors:
+    - "The model selected GitHub because GitHub Copilot and GitHub survey statistics were discussed repeatedly."
+    - "The transcript summary explicitly identified Quinn Slack as Sourcegraph CEO/co-founder."
+    - "Organization-stage receipts contained first-party sourcegraph.com results, but candidate ordering reached GitHub first."
+
+solution:
+  immediate:
+    - "Supersede the mechanically valid but semantically wrong applied projection with the guarded repair script."
+  proper:
+    - "Resolve transcript-derived founder/CEO organizations against official search receipts in a dedicated first pass."
+    - "Give a resolved transcript speaker organization precedence over a different model-authored featured organization."
+  code_change: "Slim-19 adds preferred transcript-organization receipt resolution and a Sourcegraph-versus-GitHub regression."
+
+verification:
+  - "Regression selects Sourcegraph at https://sourcegraph.com/ when the model proposes GitHub."
+  - "All 116 tests, TypeScript, and the production build pass."
+  - "Production deployment dpl_GVADCbEM8gczLPZnEz5YWNMUFSyL is Ready and its generated Cron reports disabled."
+  - "The guarded dry-run proved the old run was the latest applied result with exactly twelve preserved events before confirmed supersession."
+  - "Fresh slim-19 run 15b9c581-c0f8-4dd5-9cdd-99e8529918da canonically verifies Sourcegraph as primary, twelve hash-matched objects, and twelve applied operations."
+
+prevention:
+  - "Canonically inspect organization semantics in addition to structural hashes and apply counts."
+  - "Treat speaker-role organization anchors as stronger identity evidence than repeated competitor or benchmark mentions."
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T05:58:00Z"
+  success_rate: 1.0
+  tags: ["organization", "identity", "precedence", "speaker-employer", "sourcegraph", "slim-19"]

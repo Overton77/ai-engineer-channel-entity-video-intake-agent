@@ -1,0 +1,41 @@
+id: "stage-cascade-after-park-connection-reset"
+created: "2026-08-25T02:25:00Z"
+updated: "2026-08-25T02:25:00Z"
+
+error:
+  type: "runtime"
+  category: "StageDependencyViolation"
+  language: "typescript-postgresql"
+  pattern: "ECONNRESET leaves transcript_taxonomy leased, then claim_pre_research_stage leases web_context and dead-letters on missing run_manifest"
+  context: "Stateless pre-research stage recovery"
+
+diagnosis:
+  root_cause: "The database claim function ordered pending rows but did not require all predecessor rows to be completed. If the connection failed while parkStage was persisting a retry, the current stage stayed leased and the next pending stage was incorrectly claimable."
+  factors:
+    - "The stage lease correctly fenced the abandoned transcript attempt."
+    - "The local runner retried the run while that lease remained active."
+    - "Prompt-bundle filtering of recoverable runs could also strand an in-flight run after a source upgrade."
+
+solution:
+  immediate:
+    - "Leave the failed zero-artifact run immutable once a fresh live run exists; the unique live-video constraint prevents duplicate resurrection."
+  proper:
+    - "Require every earlier stage row to have status completed before leasing a later stage."
+    - "When a local run has unfinished work but only a future lease/retry timestamp, wait bounded intervals instead of returning an unfinished terminal-looking result."
+    - "Recover all live packet-v2 runs across compatible prompt-bundle upgrades."
+  code_change: "Migration 20260825022000 adds the predecessor predicate; the local controller waits on active leases; local and scheduled dispatch no longer prompt-filter live recoveries."
+
+verification:
+  - "Live pg_get_functiondef contains the predecessor status and stage-order predicate."
+  - "Fresh AjLVoAu-u-Q slim-7 run completed all stages in order and applied."
+  - "TypeScript, production build, and all 106 tests pass."
+
+prevention:
+  - "Enforce stage dependencies at the lease transaction boundary, not only in application materialization."
+  - "Treat live packet-schema compatibility separately from failed-run prompt-version fairness."
+
+metadata:
+  occurrences: 2
+  last_resolved: "2026-08-25T02:25:23Z"
+  success_rate: 1.0
+  tags: ["postgres", "stage-ledger", "lease", "econnreset", "recovery", "cascade"]

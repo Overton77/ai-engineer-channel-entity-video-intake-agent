@@ -1,0 +1,39 @@
+id: "ai-suffix-corporate-host-ranking"
+created: "2026-08-25T08:24:00Z"
+updated: "2026-08-25T08:24:00Z"
+
+error:
+  type: "data-quality"
+  category: "OrganizationIdentityRanking"
+  language: "typescript"
+  pattern: "An organization ending in AI is anchored to its matching GitHub owner instead of its corporate first-party host"
+  context: "Receipt-based organization recovery for Arize AI"
+
+diagnosis:
+  root_cause: "Host alias generation compared `arizeai` to `arize.com` but allowed GitHub owner `Arize-ai` to match, so GitHub won identity ranking and the URL-driven domain fallback classified Arize as a coding tool."
+  factors:
+    - "Common company suffixes such as AI and Labs were not removed for corporate-host matching."
+    - "The generic GitHub domain rule ran without a bounded Arize eval/observability identity rule."
+
+solution:
+  immediate:
+    - "Preserve and guarded-supersede the defective slim-24 Arize packet."
+  proper:
+    - "Add suffix-stripped organization host aliases for AI, Lab(s), Technology/Technologies, Inc, and Company."
+    - "Classify Arize AI as evaluation_observability_llmops before generic GitHub URL inference."
+  code_change: "controller/stages/stage-runner.ts updates organizationHostAliases and inferOrganizationDomain; controller bundle advances to slim-26."
+
+verification:
+  - "Regression with arize.com and github.com/Arize-ai receipts selects https://arize.com/."
+  - "Regression assigns evaluation_observability_llmops."
+  - "Full 125-test suite, TypeScript, and production build pass."
+
+prevention:
+  - "Rank corporate first-party roots ahead of code-host owners when both establish the same organization."
+  - "Keep bounded domain aliases ahead of generic URL-host heuristics."
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T08:24:00Z"
+  success_rate: 1.0
+  tags: ["organization", "identity", "github", "arize", "taxonomy", "slim-26"]

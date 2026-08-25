@@ -12,8 +12,14 @@ Shared files for every agent session working this goal. Read in this order.
 | [PROGRESS.md](./PROGRESS.md) | What shipped, remote apply notes, leftover risk. |
 | [HANDOFF.md](./HANDOFF.md) | How the next session runs one live v2 video without re-deriving the plan. |
 
+## Architecture research
+
+| File | Purpose |
+| --- | --- |
+| [EVE_MONOREPO_ARCHITECTURE_RESEARCH.md](./EVE_MONOREPO_ARCHITECTURE_RESEARCH.md) | Recommended multi-agent pnpm workspace, shared Eve extension, composed clients, optional orchestrator, and Vercel topology. |
+
 Codebase: `research_starter_pre_research_agent/`  
 Schema migrations: `../supabase/migrations/` (shared Supabase project, not inside the Eve app)  
 Eve docs: `research_starter_pre_research_agent/node_modules/eve/docs/` (installed `eve@0.38.3`)  
 Eve skill pointer: `research_ingestion_systems_agent/.agents/skills/eve/SKILL.md`  
-Vercel Workflow: Eve already deploys onto Vercel Workflow. The durable two-session controller is a Workflow, not a second Eve project.
+Current automatic controller: stateless v3. It does not pass packet outputs through Vercel Workflow or create Eve stage sessions. Vercel Cron supplies short-lived wakeups; Postgres stage leases and immutable Supabase Storage objects supply durability and continuation.

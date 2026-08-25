@@ -1,0 +1,36 @@
+id: "typescript-maintenance-script-missing-resolver-hook"
+created: "2026-08-25T09:35:00Z"
+updated: "2026-08-25T11:55:00Z"
+
+error:
+  type: "runtime"
+  category: "ERR_MODULE_NOT_FOUND"
+  language: "nodejs"
+  pattern: "Cannot find module agent/lib/postgres imported from executor/postgres.ts"
+  context: "Direct invocation of a maintenance .mjs script that imports extensionless TypeScript modules"
+
+diagnosis:
+  root_cause: "The command omitted the repository's register-ts resolver hook, so Node could not resolve extensionless TypeScript imports."
+  factors:
+    - "The top-level maintenance script has an .mjs extension even though its dependency graph includes .ts modules"
+    - "The failure occurs before script argument validation or database mutation"
+
+solution:
+  immediate:
+    - "Rerun with node --experimental-strip-types --import ./scripts/register-ts.mjs"
+  proper:
+    - "Copy maintenance commands from the operator reference, including the resolver flags"
+  code_change: null
+
+verification:
+  - "The guarded supersession dry-run prints its proof object"
+  - "No state changed during the failed pre-import invocation"
+
+prevention:
+  - "Use the package script when one exists; otherwise retain the repository's full Node prefix for controller maintenance scripts"
+
+metadata:
+  occurrences: 2
+  last_resolved: "2026-08-25T11:55:00Z"
+  success_rate: 1.0
+  tags: ["nodejs", "typescript", "operator", "module-resolution"]

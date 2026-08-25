@@ -9,6 +9,9 @@ export type PreResearchRun = {
   research_session_id: string | null;
   synthesis_session_id: string | null;
   packet_schema_version: string | null;
+  taxonomy_version: string;
+  prompt_bundle_version: string;
+  model_id: string;
   research_as_of: Date | string | null;
   intent_path: string | null;
   intent_sha256: string | null;
@@ -25,20 +28,25 @@ export function asIsoDate(value: Date | string | null | undefined): string | nul
 export async function loadPreResearchRun(runId: string): Promise<PreResearchRun> {
   const rows = await query<PreResearchRun>(
     `select
-       run_id,
-       video_id,
-       status,
-       transcript_sha256,
-       research_session_id,
-       synthesis_session_id,
-       packet_schema_version,
-       research_as_of,
-       intent_path,
-       intent_sha256,
-       packet_storage_prefix,
-       packet_sha256
-     from public.research_pre_research_run
-     where run_id = $1`,
+       r.run_id,
+       r.video_id,
+       r.status,
+       r.transcript_sha256,
+       r.research_session_id,
+       r.synthesis_session_id,
+       r.packet_schema_version,
+       tv.version as taxonomy_version,
+       r.prompt_bundle_version,
+       r.model_id,
+       r.research_as_of,
+       r.intent_path,
+       r.intent_sha256,
+       r.packet_storage_prefix,
+       r.packet_sha256
+     from public.research_pre_research_run r
+     join public.research_taxonomy_version tv
+       on tv.taxonomy_version_id = r.taxonomy_version_id
+     where r.run_id = $1`,
     [runId],
   );
   const run = rows[0];

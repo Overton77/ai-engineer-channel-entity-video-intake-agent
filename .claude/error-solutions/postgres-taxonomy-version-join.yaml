@@ -1,0 +1,37 @@
+id: "postgres-taxonomy-version-join"
+created: "2026-08-24T01:45:00Z"
+updated: "2026-08-24T01:45:00Z"
+
+error:
+  type: "database"
+  category: "UndefinedColumn"
+  language: "postgresql"
+  pattern: "column taxonomy_version does not exist"
+  context: "Regenerate a deterministic ingestion intent for a legacy partial pre-research run"
+
+diagnosis:
+  root_cause: "The run stores taxonomy_version_id as a foreign key; the human-readable version is on research_pre_research_taxonomy_version."
+  factors:
+    - "The v3 controller initially assumed taxonomy version was denormalized on the run row."
+    - "Legacy intent regeneration must preserve the exact identity registered when the run was created."
+
+solution:
+  immediate:
+    - "Join research_pre_research_taxonomy_version through taxonomy_version_id when loading the run."
+  proper:
+    - "Carry the joined taxonomy, prompt bundle, model, and packet schema identity through run access and deterministic intent generation."
+  code_change: "agent/lib/run-access.ts and controller/stages/stage-runner.ts now load joined taxonomy identity; save_synthesis_stage_packet.ts builds the intent from the run identity."
+
+verification:
+  - "Regenerate the legacy canary intent and verify all twelve operations apply."
+  - "Query the packet and confirm the finished marker and exact Storage hashes."
+
+prevention:
+  - "Treat version identity as run-scoped immutable data, never as current-controller constants."
+  - "Keep a legacy-partial canary in cutover verification."
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-24T01:45:00Z"
+  success_rate: 1.0
+  tags: ["postgresql", "supabase", "taxonomy", "legacy-compatibility"]

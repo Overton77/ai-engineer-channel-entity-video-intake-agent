@@ -1,0 +1,37 @@
+id: "powershell-inline-node-postgres-parameter-quoting"
+created: "2026-08-25T09:46:00Z"
+updated: "2026-08-25T09:46:00Z"
+
+error:
+  type: "runtime"
+  category: "ShellQuoting"
+  language: "powershell-nodejs"
+  pattern: "PostgreSQL syntax error near :: after inline Node query containing $1::uuid"
+  context: "Read-only operator query executed through node -e from PowerShell"
+
+diagnosis:
+  root_cause: "PowerShell expanded $1 inside a double-quoted -e program before Node received the SQL parameter placeholder."
+  factors:
+    - "Backslash is not PowerShell's general escape for nested double quotes"
+    - "The database read failed before returning rows and made no mutation"
+
+solution:
+  immediate:
+    - "Wrap the entire Node -e program in PowerShell single quotes"
+    - "Use JavaScript double-quoted strings inside that program so the PostgreSQL $1 placeholder reaches Node unchanged"
+  proper:
+    - "Prefer a checked-in inspector script for repeated queries; use the quoted inline form only for bounded one-off reads"
+  code_change: null
+
+verification:
+  - "The query returns the run UUID and prompt bundle version"
+  - "The Postgres pool closes gracefully after the read"
+
+prevention:
+  - "Never place PostgreSQL $n placeholders inside a PowerShell double-quoted inline program"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T09:46:00Z"
+  success_rate: 1.0
+  tags: ["powershell", "nodejs", "postgres", "operator", "quoting"]

@@ -1,0 +1,39 @@
+id: "daily-realtime-voice-media-domain-misclassification"
+created: "2026-08-25T11:02:00Z"
+updated: "2026-08-25T12:07:00Z"
+
+error:
+  type: "runtime"
+  category: "SemanticMisclassification"
+  language: "typescript"
+  pattern: "Daily realtime voice and media infrastructure classified as horizontal_ai_application"
+  context: "Stateless pre-research organization hydration"
+
+diagnosis:
+  root_cause: "Hydration preserved a schema-valid generic application enum even though Daily was the evidenced realtime audio/video and voice-agent infrastructure owner."
+  factors:
+    - "The transcript explicitly describes real-time audio and video infrastructure, WebRTC, and voice bots"
+    - "The authoritative taxonomy assigns realtime multimodal AI platforms to multimodal_voice_media_ai"
+    - "All packet mechanics were healthy, isolating the defect to organization-domain semantics"
+
+solution:
+  immediate:
+    - "Guardedly supersede only the proven defective Daily packet after slim-39 local ownership is proven"
+  proper:
+    - "Add a Daily-identity refinement requiring realtime audio/video, voice AI, WebRTC, or media-infrastructure evidence"
+  code_change: "Slim-39 adds the bounded multimodal_voice_media_ai refinement and regression."
+
+verification:
+  - "All 137 tests, TypeScript, and the production build pass"
+  - "Fresh slim-45 run 687e746f-cac9-4b6b-ad0e-801796ce1ca7 applied with twelve hash-matched artifacts and twelve operations"
+  - "Canonical verification identifies Daily as independent with multimodal_voice_media_ai and six organization sources"
+
+prevention:
+  - "Separate realtime multimodal infrastructure from generic horizontal end-user applications"
+  - "Regression-test wrong-but-valid model enums for voice/media infrastructure organizations"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T12:06:04Z"
+  success_rate: 1.0
+  tags: ["typescript", "pre-research", "organization-domain", "daily", "voice-ai"]

@@ -1,0 +1,35 @@
+id: "stage-ledger-lease-token-column"
+created: "2026-08-25T01:06:00Z"
+updated: "2026-08-25T01:06:00Z"
+
+error:
+  type: "database"
+  category: "UndefinedColumn"
+  language: "postgresql"
+  pattern: "column lease_token of relation research_pre_research_stage_execution does not exist"
+  context: "Guarded release of an abandoned empty local stage lease"
+
+diagnosis:
+  root_cause: "The claim RPC returns a plaintext lease_token, but the durable table stores only lease_token_hash."
+  factors:
+    - "RPC response vocabulary differs intentionally from compact ledger storage."
+
+solution:
+  immediate:
+    - "Roll back the failed transaction and inspect the authoritative migration."
+  proper:
+    - "Clear lease_token_hash, lease_owner, lease_expires_at, and started_at only under exact empty-stage and stopped-worker guards."
+  code_change: "The abandoned zero-artifact handoff used the ledger's actual lease_token_hash column."
+
+verification:
+  - "The transaction returned exactly one pending transcript_taxonomy stage and one slim-5 run."
+  - "The slim-5 supervisor reclaimed that exact run as the sole worker."
+
+prevention:
+  - "Inspect the compact ledger migration before authoring direct operator repairs; do not infer table columns from RPC return fields."
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T01:05:00Z"
+  success_rate: 1.0
+  tags: ["postgresql", "stage-ledger", "lease", "operator-repair"]

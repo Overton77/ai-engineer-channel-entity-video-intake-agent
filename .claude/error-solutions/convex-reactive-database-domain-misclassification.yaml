@@ -1,0 +1,39 @@
+id: "convex-reactive-database-domain-misclassification"
+created: "2026-08-25T10:41:04Z"
+updated: "2026-08-25T10:41:04Z"
+
+error:
+  type: "runtime"
+  category: "SemanticMisclassification"
+  language: "typescript"
+  pattern: "Convex reactive database packet classified as horizontal_ai_application"
+  context: "Stateless pre-research organization hydration"
+
+diagnosis:
+  root_cause: "Hydration preserved a schema-valid generic application enum even though Convex was the evidenced reactive database and serverless backend implementation owner."
+  factors:
+    - "Valid model enums bypass generic fallback inference"
+    - "The talk's assistant was a demonstration built on Convex rather than Convex's organization domain"
+    - "The mechanically healthy packet isolated the defect to organization-domain semantics"
+
+solution:
+  immediate:
+    - "Guardedly supersede only the proven defective applied packet"
+  proper:
+    - "Add a bounded Convex refinement requiring official identity plus reactive-database or backend-platform transcript evidence"
+  code_change: "Slim-36 adds the bounded database_data_ai_platform refinement and regression."
+
+verification:
+  - "All 134 tests, TypeScript, and build pass"
+  - "Reprocessed packet has twelve hash-matched artifacts and twelve applied operations"
+  - "Canonical result records Convex as an independent database_data_ai_platform organization with six first-party sources"
+
+prevention:
+  - "Separate the demonstrated end-user application from the implementation owner's durable organization domain"
+  - "Regression-test wrong-but-valid model enums for known platform organizations"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T10:41:04Z"
+  success_rate: 1.0
+  tags: ["typescript", "pre-research", "organization-domain", "database", "convex"]

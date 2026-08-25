@@ -1,0 +1,42 @@
+id: "department-titled-speaker-employer-omission"
+created: "2026-08-25T07:10:00Z"
+updated: "2026-08-25T07:10:00Z"
+
+error:
+  type: "runtime"
+  category: "SemanticIdentitySelection"
+  language: "typescript"
+  pattern: "A supporting model vendor outranks the implementation-owning employer when the transcript says '<role> of <department> at <organization>'"
+  context: "Stateless pre-research organization hydration for conference talks"
+
+diagnosis:
+  root_cause: "transcriptOrganizationNames recognized simple role-at-company phrases but did not recognize department-bearing titles such as 'Director of Engineering at Khan Academy'. The missing employer candidate allowed Microsoft, a supporting model and infrastructure vendor, to become primary."
+  factors:
+    - "The transcript and summary explicitly named the speaker's employer and implementation ownership."
+    - "Organization-stage search receipts contained first-party Khan Academy results."
+    - "The existing role regular expression did not span the department phrase between the role and 'at'."
+
+solution:
+  immediate:
+    - "Supersede the exact latest applied defective packet only after a corrected prompt-bundle deployment is live."
+  proper:
+    - "Extract bounded '<role> of <department> at|for <organization>' phrases before the simpler non-executive role pattern."
+    - "Retain official-receipt resolution and strict source-to-primary filtering."
+  code_change: "controller/stages/stage-runner.ts adds a bounded department-titled role pattern; prompt bundle advances to pre-research-v3-stateless-slim-22."
+
+verification:
+  - "Regression with 'Director of Engineering at Khan Academy' selects Khan Academy over Microsoft."
+  - "Full 121-test suite passes."
+  - "TypeScript typecheck passes."
+  - "Production build passes."
+  - "Reprocessed packet must canonically verify Khan Academy as primary with twelve hash-matched objects and twelve applied operations."
+
+prevention:
+  - "Keep transcript-employer precedence fixtures for executive, simple non-executive, and department-titled roles."
+  - "Audit live canaries semantically instead of relying only on hashes and apply counts."
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T07:10:00Z"
+  success_rate: 1.0
+  tags: ["typescript", "organization-identity", "transcript", "stateless-controller", "slim-22"]

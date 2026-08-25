@@ -1,0 +1,41 @@
+id: "organization-search-receipt-candidate-omission"
+created: "2026-08-25T02:11:00Z"
+updated: "2026-08-25T02:11:00Z"
+
+error:
+  type: "runtime"
+  category: "ControllerEvidenceDiscard"
+  language: "typescript"
+  pattern: "Organization search finds the official GitHub organization and docs, but empty structured candidate names force review_required"
+  context: "Stateless organization research hydration"
+
+diagnosis:
+  root_cause: "The controller recorded organization-stage search URLs but could infer a candidate only from model-authored names or quoted query phrases. It discarded transcript-anchored GitHub owners and official domains when those structured names were omitted."
+  factors:
+    - "The search query and results correctly identified Guardrails AI."
+    - "The model returned no featured organization, candidate name, or speaker employer."
+    - "Only web-context resources, not organization-stage receipts, were retained as proposed technical sources."
+
+solution:
+  immediate:
+    - "Leave the already-materialized packet in review_required; do not apply a packet with no primary organization."
+  proper:
+    - "Derive candidate names from GitHub owners and organization domains only when the normalized full name appears in transcript analysis and the receipt query."
+    - "Prefer a matching official domain over a GitHub organization URL."
+    - "Retain same-domain official documentation as first-party technical evidence."
+  code_change: "inferredReceiptOrganization now ranks transcript-anchored result identities, and hydrateOrganizationResearch adds bounded same-surface technical sources."
+
+verification:
+  - "Regression fixture recovers Guardrails AI from github.com/guardrails-ai plus guardrailsai.com/docs."
+  - "The candidate resolves to https://guardrailsai.com/ and official documentation survives source verification."
+  - "TypeScript and all 104 tests pass."
+
+prevention:
+  - "Treat controller-recorded search receipts as durable evidence even when structured model arrays are incomplete."
+  - "Require both transcript anchoring and query anchoring before inferring an organization from a result URL."
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T02:11:00Z"
+  success_rate: 1.0
+  tags: ["organization", "search-receipts", "github", "official-docs", "controller-hydration"]

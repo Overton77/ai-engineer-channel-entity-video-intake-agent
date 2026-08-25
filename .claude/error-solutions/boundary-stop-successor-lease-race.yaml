@@ -1,0 +1,43 @@
+id: "boundary-stop-successor-lease-race"
+created: "2026-08-25T14:35:00Z"
+updated: "2026-08-25T14:50:13Z"
+
+error:
+  type: "runtime"
+  category: "OrchestrationRace"
+  language: "powershell-typescript"
+  pattern: "Exact result watcher stops a worker after it has already claimed and leased the successor video"
+  context: "Slim57 to slim58 local source handoff"
+
+diagnosis:
+  root_cause: "The watcher learned about completion through an asynchronously flushed stdout line. The tight batch loop could claim and lease the next run before the watcher observed that line and force-stopped the process."
+  factors:
+    - "The watcher validated the requested completed result but had no cooperative stop point inside the worker loop"
+    - "Local stage leases last thirty minutes to protect long GLM reductions"
+    - "The successor lease had no checkpoint, artifacts, or intent, but remained unavailable until expiry"
+
+solution:
+  immediate:
+    - "Prove the prior PID is dead and the exact leased stage has no checkpoint, registered output artifact, packet object, or intent"
+    - "Release only that exact orphaned empty lease and let the sole current worker reclaim it"
+  proper:
+    - "Write an exact PID/video/run boundary request before monitoring stdout"
+    - "Have the worker consume the request after emitting and recording the matching result, exit with restart code 75, and never enter the next claim iteration"
+    - "Retain a bounded force-stop fallback only for pre-cooperative workers"
+  code_change: "Add cooperative boundary signaling and a strictly guarded orphaned-empty-stage release command."
+
+verification:
+  - "Regression proves the worker checks the boundary request and exits before another loop iteration"
+  - "Regression proves orphan release requires a dead PID, exact owner, no checkpoint, no artifacts, and no intent"
+  - "The slim-59 to slim-60 handoff logged boundary_stop_cooperative for PID 6424 after exact run 9c4e54c4-7904-4c81-8f18-d8e93c9845a1"
+  - "PID 6424 exited with no recoverable successor; watchdog PID 13068 then started PID 11660, which alone claimed the next run"
+
+prevention:
+  - "Prefer in-process graceful boundaries over observing stdout and killing from another process"
+  - "Treat a result log as durable completion evidence, not proof the worker is still between iterations"
+
+metadata:
+  occurrences: 2
+  last_resolved: "2026-08-25T14:50:13Z"
+  success_rate: 1.0
+  tags: ["pre-research", "watchdog", "lease", "race", "windows"]

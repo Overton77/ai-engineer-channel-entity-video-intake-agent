@@ -1,0 +1,40 @@
+id: "exa-search-provider-entity-leakage"
+created: "2026-08-25T01:42:00Z"
+updated: "2026-08-25T01:42:00Z"
+
+error:
+  type: "runtime"
+  category: "SearchProviderIdentityLeakage"
+  language: "typescript"
+  pattern: "Exa search-result URLs are promoted to a featured Exa organization for a video that does not discuss Exa"
+  context: "Controller hydration of web-context entities and organization research"
+
+diagnosis:
+  root_cause: "Fallback first-party inference used substring matching, so the token 'exa' matched ordinary transcript words such as 'example'; exa.ai library URLs were then treated as organization evidence."
+  factors:
+    - "The search provider hosts useful mirrors and entity pages that are evidence transport, not necessarily subjects of the video."
+    - "Organization hydration trusted both the contaminated web entity and a model-authored featured organization without a provider-specific transcript anchor."
+
+solution:
+  immediate:
+    - "Keep the affected packet in review_required so the false Exa organization is never applied."
+  proper:
+    - "Use normalized whole-name transcript matching for fallback organization inference."
+    - "Treat exa.ai as a search-provider host and suppress its first-party/entity status unless the transcript explicitly names Exa."
+    - "Apply the same guard to model-authored featured organizations while preserving genuine Exa-focused videos."
+  code_change: "hydrateWebContext and hydrateOrganizationResearch now decontaminate search-provider identity with exact normalized phrase matching."
+
+verification:
+  - "Regression test proves that 'example' does not promote Exa or mark an exa.ai paper mirror first-party."
+  - "Regression test proves a transcript explicitly about Exa can still select Exa."
+  - "TypeScript passes and all 103 tests pass."
+
+prevention:
+  - "Never infer named entities from raw provider-domain substrings."
+  - "Separate evidence transport/provider identity from the entities supported by that evidence."
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T01:42:00Z"
+  success_rate: 1.0
+  tags: ["exa", "search-provider", "entity-resolution", "organization", "review-required"]

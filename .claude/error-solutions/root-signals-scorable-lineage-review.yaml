@@ -1,0 +1,41 @@
+id: "root-signals-scorable-lineage-review"
+created: "2026-08-25T15:06:00Z"
+updated: "2026-08-25T15:31:28Z"
+
+error:
+  type: "semantic"
+  category: "TemporalOrganizationIdentity"
+  language: "typescript"
+  pattern: "Root Signals rebrand evidence leaves organization candidate empty and produces review_required"
+  context: "Canonical audit of slim-60 Agent Evals reprocess"
+
+diagnosis:
+  root_cause: "The organization model found the current Scorable identity and declined to emit a legacy Root Signals candidate, while deterministic recovery could only refine an existing candidate and could not synthesize the verified lineage."
+  factors:
+    - "The transcript clearly identifies Root Signals at video time"
+    - "Current search receipts contain scorable.ai, docs.scorable.ai, and the root-signals/scorable-sdk repository"
+    - "Legacy receipt inference reconstructed the GitHub Root Signals identity before the initial empty-candidate fallback"
+
+solution:
+  immediate:
+    - "Preserve the slim-60 zero-apply review packet until slim-61 ownership is proven"
+  proper:
+    - "Recover current Scorable only when exact Root Signals eval evidence and a current Scorable surface co-occur"
+    - "Record Root Signals as video_time_name and the verified identity change"
+    - "Attach first-party Scorable homepage, evaluator documentation, and Root Signals/Scorable SDK evidence"
+  code_change: "Add bounded Scorable-current / Root-Signals-video-time lineage recovery before the legacy GitHub refinement."
+
+verification:
+  - "Regression recovers Scorable at scorable.ai with Root Signals as video_time_name"
+  - "All 159 tests, TypeScript, and production build pass"
+  - "Fresh slim-61 packet must have twelve hash-matched objects, twelve applied operations, and the corrected temporal identity"
+
+prevention:
+  - "Test current-name/video-time-name lineage when models conservatively omit a candidate"
+  - "Order verified lineage recovery ahead of legacy host inference"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T15:29:50Z"
+  success_rate: 1.0
+  tags: ["pre-research", "root-signals", "scorable", "rebrand", "review-required"]

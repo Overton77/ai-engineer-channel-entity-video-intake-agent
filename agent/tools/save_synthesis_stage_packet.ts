@@ -57,14 +57,14 @@ import {
   type SynthesisStageName,
 } from "../lib/turn-capabilities";
 
-const stageSchemas = {
+export const synthesisStageSchemas = {
   initial_summary: initialSummarySchema,
   technology_library_summary: technologyLibrarySummarySchema,
   organization_profile: organizationProfileSchema,
   ingestion_intent: ingestionIntentSchema,
 } as const;
 
-const initialSummaryStageInputSchema = initialSummaryContentSchema.extend({ run_id: z.uuid() });
+export const initialSummaryStageInputSchema = initialSummaryContentSchema.extend({ run_id: z.uuid() });
 
 // GLM can serialize a top-level JSON null tool argument as the literal string
 // "null" when the generated provider schema contains a nullable anyOf. Accept
@@ -180,7 +180,7 @@ export function effectiveOrganizationProfile<T extends EffectiveOrganizationProf
   };
 }
 
-const ingestionStageInputSchema = z.object({ run_id: z.uuid() });
+export const ingestionStageInputSchema = z.object({ run_id: z.uuid() });
 
 const stageOrder: readonly SynthesisStageName[] = [
   "initial_summary",
@@ -189,7 +189,7 @@ const stageOrder: readonly SynthesisStageName[] = [
   "ingestion_intent",
 ];
 
-type SynthesisArtifacts = {
+export type SynthesisArtifacts = {
   initial_summary: InitialSummary;
   technology_library_summary: TechnologyLibrarySummary;
   organization_profile: OrganizationProfile;
@@ -206,7 +206,7 @@ function normalizedUrl(raw: string): string {
   return url.toString();
 }
 
-function stampOrganizationIds(runId: string, raw: Record<string, unknown>): Record<string, unknown> {
+export function stampOrganizationIds(runId: string, raw: Record<string, unknown>): Record<string, unknown> {
   const primary = raw.primary_featured_organization as Record<string, unknown> | null | undefined;
   const others = Array.isArray(raw.other_organizations)
     ? (raw.other_organizations as Record<string, unknown>[])
@@ -269,7 +269,7 @@ function referencedEvidenceIds(value: unknown, target = new Set<string>()): Set<
   return target;
 }
 
-function buildIngestionIntent(
+export function buildIngestionIntent(
   run: Awaited<ReturnType<typeof loadPreResearchRun>>,
   research: ResearchPhasePacket,
   prior: Pick<SynthesisArtifacts, "initial_summary" | "technology_library_summary" | "organization_profile">,
@@ -462,11 +462,11 @@ function buildIngestionIntent(
       video_id: run.video_id,
       run_id: run.run_id,
       transcript_sha256: run.transcript_sha256,
-      taxonomy_version: TAXONOMY_VERSION,
-      prompt_bundle_version: PROMPT_BUNDLE_VERSION,
-      model_id: "zai/glm-5.2",
+      taxonomy_version: run.taxonomy_version,
+      prompt_bundle_version: run.prompt_bundle_version,
+      model_id: run.model_id,
       research_as_of: research.run_manifest.research_as_of,
-      packet_schema_version: PACKET_SCHEMA_VERSION,
+      packet_schema_version: run.packet_schema_version ?? research.run_manifest.schema_version,
     },
     evidence_grades_used: [
       ...new Set([
@@ -485,7 +485,7 @@ function synthesisReviewReasons(packet: PreResearchPacket): string[] {
   });
 }
 
-function artifactIdentity(
+export function synthesisArtifactIdentity(
   stage: SynthesisStageName,
   value: SynthesisArtifacts[SynthesisStageName],
 ): { run_id: string; video_id: string; transcript_sha256: string } {
@@ -496,7 +496,7 @@ function artifactIdentity(
   return value as InitialSummary | TechnologyLibrarySummary | OrganizationProfile;
 }
 
-async function loadRegisteredSynthesisArtifacts(
+export async function loadRegisteredSynthesisArtifacts(
   runId: string,
 ): Promise<Partial<SynthesisArtifacts>> {
   const registered = await listRegisteredArtifacts(runId);
@@ -504,14 +504,14 @@ async function loadRegisteredSynthesisArtifacts(
   for (const stage of stageOrder) {
     const row = registered.find((candidate) => candidate.artifact_kind === stage);
     if (!row) continue;
-    result[stage] = stageSchemas[stage].parse(await downloadVerifiedArtifact(row)) as never;
+    result[stage] = synthesisStageSchemas[stage].parse(await downloadVerifiedArtifact(row)) as never;
   }
   return result;
 }
 
-async function finalizeSynthesis(
+export async function finalizeSynthesis(
   runId: string,
-  sessionId: string,
+  sessionId: string | null,
   packet: PreResearchPacket,
   idempotencyKeyRewritten: boolean,
 ) {
@@ -598,6 +598,26 @@ async function finalizeSynthesis(
   const nextStatus = reviewReasons.length > 0 ? "review_required" : "intent_ready";
   let phaseTransitionError: string | null = null;
   try {
+    if (sessionId === null) {
+      return {
+        saved: true as const,
+        phase: "synthesis" as const,
+        stage: "ingestion_intent" as const,
+        run_id: run.run_id,
+        video_id: run.video_id,
+        intent_id: intentRow.intent_id,
+        next_status: nextStatus,
+        review_reasons: reviewReasons,
+        packet_storage_prefix: prefix,
+        packet_sha256: packetSha,
+        intent_path: intentPath,
+        intent_sha256: intentSha,
+        artifact: uploaded,
+        idempotency_key: intent.idempotency_key,
+        idempotency_key_rewritten: idempotencyKeyRewritten,
+        phase_transition_error: null,
+      };
+    }
     await query(
       `select research_private.complete_synthesis_phase(
          $1::uuid, $2::text, $3::public.research_pre_research_run_status
@@ -642,7 +662,7 @@ export default defineDynamic({
             ? ingestionStageInputSchema
             : stage === "initial_summary"
               ? initialSummaryStageInputSchema
-              : stageSchemas[stage]) as z.ZodTypeAny;
+        : synthesisStageSchemas[stage]) as z.ZodTypeAny;
       return defineTool({
         description:
           stage === "ingestion_intent"
@@ -702,7 +722,7 @@ export default defineDynamic({
               >,
             );
           }
-          const identity = artifactIdentity(stage, value);
+          const identity = synthesisArtifactIdentity(stage, value);
           assertRunMatchesPacket(run, identity);
 
           const stageIndex = stageOrder.indexOf(stage);

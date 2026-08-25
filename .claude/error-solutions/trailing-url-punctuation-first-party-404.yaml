@@ -1,0 +1,41 @@
+id: "trailing-url-punctuation-first-party-404"
+created: "2026-08-25T08:12:00Z"
+updated: "2026-08-25T08:12:00Z"
+
+error:
+  type: "data-quality"
+  category: "UrlNormalization"
+  language: "typescript"
+  pattern: "A first-party source URL ends in sentence punctuation, passes URL validation, and returns HTTP 404"
+  context: "Stateless pre-research search receipts and slim model output hydration"
+
+diagnosis:
+  root_cause: "WHATWG URL parsing and Zod URL validation accept a trailing period as a legal path character, so punctuation copied from search-result prose propagated into verified organization sources."
+  factors:
+    - "collectUrls recursively extracts URLs from prose-shaped tool results."
+    - "Model-facing URL fields were validated but not punctuation-normalized."
+    - "First-party deterministic hydration preserved the malformed path exactly."
+
+solution:
+  immediate:
+    - "Treat the affected EyeLevel packet as semantically defective and preserve it for guarded supersession."
+  proper:
+    - "Normalize trailing sentence punctuation before accepting HTTP(S) URLs from both search receipts and model schemas."
+    - "Keep hashes and immutable packet history intact; reprocess under the fixed prompt bundle."
+  code_change: "controller/stages/stage-runner.ts adds normalizeExternalHttpUrl at receipt and model-schema boundaries; controller bundle advances to slim-24."
+
+verification:
+  - "The exact punctuated EyeLevel llms.txt URLs return HTTP 404."
+  - "The normalized llms.txt URL returns HTTP 200 and llms-full.txt returns a normal redirect."
+  - "Regression covers both prose search receipts and direct model URL fields."
+  - "Full 123-test suite, TypeScript, and production build pass."
+
+prevention:
+  - "Normalize external URL boundary data before identity, deduplication, verification, or packet hashing."
+  - "Semantically inspect first-party source paths, not only host ownership and schema validity."
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T08:12:00Z"
+  success_rate: 1.0
+  tags: ["url", "search-receipt", "first-party", "404", "slim-24"]

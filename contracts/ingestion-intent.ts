@@ -348,6 +348,9 @@ const organizationCandidatesOperationSchema = z
   .array(organizationCandidatePayloadSchema)
   .max(20)
   .superRefine((candidates, ctx) => {
+    // The v2 profile contract explicitly permits a reviewed no-organization
+    // result. In that case replace semantics use an empty candidate array.
+    if (candidates.length === 0) return;
     const check = validateOrganizationCandidateSet(candidates);
     for (const message of check.errors) {
       ctx.addIssue({ code: "custom", message });

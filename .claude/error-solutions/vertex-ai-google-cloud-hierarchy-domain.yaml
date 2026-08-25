@@ -1,0 +1,42 @@
+id: "vertex-ai-google-cloud-hierarchy-domain"
+created: "2026-08-25T09:38:00Z"
+updated: "2026-08-25T09:38:00Z"
+
+error:
+  type: "runtime"
+  category: "SemanticTaxonomyDefect"
+  language: "typescript"
+  pattern: "Google Cloud Vertex AI packet flattened to independent Google and ai_developer_platform_sdk"
+  context: "Stateless pre-research organization-domain and hierarchy hydration"
+
+diagnosis:
+  root_cause: "Controller hydration preserved a schema-valid broad Google identity and SDK domain instead of representing the evidenced Google Cloud platform unit."
+  factors:
+    - "The transcript explicitly identifies the speaker as part of Google Cloud's Vertex AI team"
+    - "The talk presents Vertex AI as a managed full-lifecycle platform with Model Garden and Agent Builder"
+    - "All six organization sources are first-party cloud.google.com or docs.cloud.google.com surfaces"
+
+solution:
+  immediate:
+    - "Add a bounded refinement requiring Google Cloud and Vertex AI transcript evidence plus a Google Cloud official host or Google/Google Cloud model identity"
+    - "Set primary to Google Cloud, scope division, parent Google, and domain cloud_ai_platform"
+  proper:
+    - "Regression-test the observed broad-company flattening and valid-but-wrong SDK enum"
+    - "Assert the hydrated candidate's official_url field rather than the model-facing canonical_url input field"
+    - "Guarded-supersede the old applied packet only after slim-31 owns the local drain"
+  code_change: "controller/stages/stage-runner.ts and tests/stateless-pre-research.test.mts"
+
+verification:
+  - "Focused hierarchy/domain regression passes"
+  - "Full 130-test suite, TypeScript, and production build pass"
+  - "Reprocessed packet must preserve twelve immutable objects and twelve applied operations"
+
+prevention:
+  - "Prefer the evidenced cloud operating unit over its broad technology parent"
+  - "Distinguish managed cloud AI platforms from generic developer SDK organizations"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T09:38:00Z"
+  success_rate: 1.0
+  tags: ["pre-research", "taxonomy", "google-cloud", "vertex-ai", "hierarchy"]

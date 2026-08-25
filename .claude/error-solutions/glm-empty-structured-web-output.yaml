@@ -1,0 +1,38 @@
+id: "glm-empty-structured-web-output"
+created: "2026-08-25T00:50:00Z"
+updated: "2026-08-25T00:50:00Z"
+
+error:
+  type: "runtime"
+  category: "StructuredOutputEvidenceLoss"
+  language: "typescript"
+  pattern: "GLM completes Exa web_search calls but returns empty resources/entities arrays"
+  context: "Stateless pre-research web and organization hydration"
+
+diagnosis:
+  root_cause: "The model-facing schema allowed empty arrays, while useful search results existed only in AI SDK tool-call receipts. A later dedupe also preserved the model's weaker 'other' entity label over controller-derived organization identity."
+  factors:
+    - "Search receipts and model JSON are separate outputs of the same stage."
+    - "Organization assembly requires a canonical organization entity and authoritative identity plus technical sources."
+
+solution:
+  immediate:
+    - "Extract actual web_search result URLs from AI SDK steps."
+    - "Hydrate bounded resources, canonical homepages, and named organizations controller-side when model arrays are empty or weak."
+  proper:
+    - "Prefer controller-derived organization identity during entity deduplication and keep UUIDs, receipts, verification timestamps, and source graphs controller-owned."
+  code_change: "hydrateWebContext converts real Exa receipts into bounded evidence and hydrateOrganizationResearch deterministically assembles the primary candidate."
+
+verification:
+  - "Regression test covers empty model arrays and a weaker duplicate entity label."
+  - "Supabase canary a91d98f3-2761-4178-8569-f1b6e517403a reached applied/finished with twelve verified packet objects and twelve applied intent operations."
+
+prevention:
+  - "Treat tool receipts as authoritative controller inputs, not optional model-authored fields."
+  - "Test precedence whenever controller hydration and model labels describe the same entity."
+
+metadata:
+  occurrences: 2
+  last_resolved: "2026-08-25T00:47:33Z"
+  success_rate: 1.0
+  tags: ["glm", "structured-output", "exa", "controller-hydration", "stateless"]

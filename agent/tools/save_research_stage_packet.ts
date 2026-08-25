@@ -30,38 +30,38 @@ import {
 } from "../lib/run-access";
 import { isSynthesisTurn, researchStageFromMessages } from "../lib/turn-capabilities";
 
-const transcriptTaxonomyStageSchema = z.object({
+export const transcriptTaxonomyStageSchema = z.object({
   stage: z.literal("transcript_taxonomy"),
   run_manifest: runManifestSchema,
   transcript_analysis: transcriptAnalysisSchema,
   taxonomy_classification: taxonomyClassificationSchema,
 });
 
-const webContextStageSchema = z.object({
+export const webContextStageSchema = z.object({
   stage: z.literal("web_context"),
   run_id: z.string().uuid(),
   web_context: webContextSchema,
 });
 
-const organizationResearchStageSchema = z.object({
+export const organizationResearchStageSchema = z.object({
   stage: z.literal("organization_research"),
   run_id: z.string().uuid(),
   organization_research: organizationResearchSchema,
 });
 
-const sourceVerificationStageSchema = z.object({
+export const sourceVerificationStageSchema = z.object({
   stage: z.literal("source_verification"),
   run_id: z.string().uuid(),
   source_verification: sourceVerificationSchema,
 });
 
-const curriculumStageSchema = z.object({
+export const curriculumStageSchema = z.object({
   stage: z.literal("curriculum"),
   run_id: z.string().uuid(),
   curriculum_signals: curriculumSignalsSchema,
 });
 
-const researchStagePacketSchema = z.discriminatedUnion("stage", [
+export const researchStagePacketSchema = z.discriminatedUnion("stage", [
   transcriptTaxonomyStageSchema,
   webContextStageSchema,
   organizationResearchStageSchema,
@@ -69,7 +69,7 @@ const researchStagePacketSchema = z.discriminatedUnion("stage", [
   curriculumStageSchema,
 ]);
 
-const stageKinds = {
+export const researchStageKinds = {
   transcript_taxonomy: ["run_manifest", "transcript_analysis", "taxonomy_classification"],
   web_context: ["web_context"],
   organization_research: ["organization_research"],
@@ -77,7 +77,7 @@ const stageKinds = {
   curriculum: ["curriculum_signals"],
 } as const;
 
-async function loadPriorPacket(runId: string): Promise<Partial<ResearchPhasePacket>> {
+export async function loadPriorResearchPacket(runId: string): Promise<Partial<ResearchPhasePacket>> {
   const rows = await listRegisteredArtifacts(runId);
   const packet: Partial<ResearchPhasePacket> = {};
   for (const row of rows) {
@@ -114,7 +114,7 @@ export default defineDynamic({
     assertResearchPhaseAccess(run, ctx.session.id);
 
     const registeredBefore = await listRegisteredArtifacts(runId);
-    const requiredKinds = stageKinds[input.stage];
+    const requiredKinds = researchStageKinds[input.stage];
     const alreadyRegistered = requiredKinds
       .map((kind) => registeredBefore.find((row) => row.artifact_kind === kind))
       .filter((row): row is NonNullable<typeof row> => Boolean(row));
@@ -138,7 +138,7 @@ export default defineDynamic({
       };
     }
 
-    const prior = await loadPriorPacket(runId);
+    const prior = await loadPriorResearchPacket(runId);
     const manifest = prior.run_manifest;
     if (input.stage !== "transcript_taxonomy" && !manifest) {
       throw new Error("RESEARCH_STAGE_ORDER: transcript_taxonomy must be saved first");
@@ -235,7 +235,7 @@ export default defineDynamic({
     }
 
     const artifacts = [];
-    for (const kind of stageKinds[input.stage]) {
+    for (const kind of researchStageKinds[input.stage]) {
       const value = additions[kind as keyof ResearchPhasePacket];
       if (!value) throw new Error(`RESEARCH_STAGE_MISSING: ${kind}`);
       artifacts.push(

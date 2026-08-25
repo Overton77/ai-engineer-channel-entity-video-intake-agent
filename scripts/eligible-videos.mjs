@@ -135,6 +135,18 @@ function buildListQuery(hasStateTable) {
     where ${CANONICAL_ELIGIBILITY_PREDICATES}
       and ($3::text is null or v.video_id = $3)
       and ${occupancyFilter}
+      and (
+        $5::text is null
+        or not exists (
+          select 1
+            from public.research_pre_research_run failed_current
+           where failed_current.video_id = v.video_id
+             and failed_current.transcript_sha256 = ${CURRENT_TRANSCRIPT_HASH}
+             and failed_current.packet_schema_version = $6
+             and failed_current.prompt_bundle_version = $5
+             and failed_current.status = 'failed'
+        )
+      )
     order by v.published_at asc nulls last, v.video_id
     limit $1
   `;
@@ -144,6 +156,7 @@ export async function listEligibleVideos({
   limit = 50,
   includeApplied = false,
   videoId = null,
+  excludeFailedPromptBundleVersion = null,
 } = {}) {
   const raw = process.env.POSTGRES_URL_NON_POOLING ?? process.env.POSTGRES_URL;
   if (!raw) {
@@ -166,6 +179,8 @@ export async function listEligibleVideos({
       includeApplied,
       videoId,
       LIVE_OR_APPLIED_STATUSES,
+      excludeFailedPromptBundleVersion,
+      CURRENT_PACKET_SCHEMA_VERSION,
     ]);
     return rows;
   } finally {
@@ -173,7 +188,7 @@ export async function listEligibleVideos({
   }
 }
 
-export async function listRecoverableRuns({ limit = 1000 } = {}) {
+export async function listRecoverableRuns({ limit = 1000, promptBundleVersion = null } = {}) {
   const raw = process.env.POSTGRES_URL_NON_POOLING ?? process.env.POSTGRES_URL;
   if (!raw) {
     throw new Error("POSTGRES_URL or POSTGRES_URL_NON_POOLING is required");
@@ -202,6 +217,7 @@ export async function listRecoverableRuns({ limit = 1000 } = {}) {
        left join public.research_pre_research_artifact a on a.run_id = r.run_id
        where r.status::text = any($2::text[])
          and r.packet_schema_version = $3
+         and ($4::text is null or r.prompt_bundle_version = $4)
          and r.transcript_sha256 = ${CURRENT_TRANSCRIPT_HASH}
          and ${CANONICAL_ELIGIBILITY_PREDICATES}
          and not ${finishedPredicate()}
@@ -212,6 +228,7 @@ export async function listRecoverableRuns({ limit = 1000 } = {}) {
         limit,
         LIVE_OR_APPLIED_STATUSES.filter((status) => status !== "applied" && status !== "review_required"),
         CURRENT_PACKET_SCHEMA_VERSION,
+        promptBundleVersion,
       ],
     );
     return rows;

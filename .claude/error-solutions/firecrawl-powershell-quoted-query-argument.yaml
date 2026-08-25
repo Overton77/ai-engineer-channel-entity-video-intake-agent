@@ -1,0 +1,32 @@
+id: "firecrawl-powershell-quoted-query-argument"
+created: "2026-08-25T12:38:00Z"
+updated: "2026-08-25T12:38:00Z"
+
+error:
+  type: "cli"
+  category: "ArgumentQuoting"
+  language: "powershell"
+  pattern: "firecrawl search reports too many arguments when an exact-name phrase is embedded with double quotes"
+  context: "PowerShell invocation of a Firecrawl exact-name search"
+
+diagnosis:
+  root_cause: "PowerShell consumed the nested double quotes and split the intended single query argument into multiple CLI arguments."
+
+solution:
+  immediate:
+    - "Wrap the complete query in PowerShell single quotes and keep exact-name double quotes inside that string"
+  proper:
+    - "Treat the Firecrawl query as exactly one positional argument"
+  code_change: "Operational command form only"
+
+verification:
+  - "Corrected command completed and wrote a search result with ID 01a038ed-087e-76ff-83a8-a93c98c8ef38"
+  - "The rejected command spent no search credits"
+
+prevention:
+  - "Use single-quoted PowerShell query arguments whenever a Firecrawl query contains literal double quotes"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T12:38:00Z"
+  success_rate: 1.0

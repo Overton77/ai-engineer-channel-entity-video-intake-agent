@@ -1,0 +1,40 @@
+id: "structured-cap-induced-fallback-amplification"
+created: "2026-08-25T03:36:00Z"
+updated: "2026-08-25T03:43:00Z"
+
+error:
+  type: "performance"
+  category: "FallbackAmplification"
+  language: "typescript-ai-sdk"
+  pattern: "A nominally lower structured generation cap produces stage output usage greater than research_cap + structured_cap"
+  context: "Slim pre-research GLM stages with structured-output fallback"
+
+diagnosis:
+  root_cause: "generateStructured speculatively called Output.object and then resent the full prompt through a plain-JSON fallback whenever GLM's structured wrapper rejected output. Tight caps and hard prose maxima made that worse, but removing them alone did not eliminate the duplicate generation."
+  factors:
+    - "qBHfQT3YtyY web_context reported 22,691 output tokens, proving more than the single 4,500 + 10,000 token call path. Slim-9 still reported 22,078 with an 18,500 one-pass maximum."
+    - "Hard prose maxima reject otherwise usable model text rather than letting controller hydration compact it."
+    - "Five 2,000-character Exa results per query inflated the evidence payload entering both structured attempts."
+
+solution:
+  immediate:
+    - "Remove validation-triggering model-facing prose maxima and preserve the successfully applied slim-8 packet."
+  proper:
+    - "Keep the 4,500-token research cap, restore 14,000 tokens of structured headroom, and reduce each Exa search response to four 1,200-character results."
+    - "Call the repairable strict-JSON path once instead of paying for Output.object and then repeating the same prompt as a fallback."
+  code_change: "Slim-10 removes the speculative Output.object call. Each model stage now performs one strict-JSON generation and locally repairs/parses it."
+
+verification:
+  - "All 107 tests, TypeScript, and the production build pass."
+  - "Deployment dpl_FE297r51ZzS2Po1Yq2drztB5ECQG is Ready and Cron returns disabled."
+  - "Local run bddefd53-22a2-49cd-83ba-338875b28e61 is database-stamped pre-research-v3-stateless-slim-10."
+
+prevention:
+  - "Audit summed usage for values exceeding the theoretical one-pass caps; that is a fallback signal even when the stage status is completed."
+  - "Prefer reducing retrieved input payload and explicit concision instructions over hard prose constraints that induce retries."
+
+metadata:
+  occurrences: 2
+  last_resolved: "2026-08-25T03:42:50Z"
+  success_rate: 1.0
+  tags: ["structured-output", "fallback", "tokens", "exa", "throughput", "schema"]

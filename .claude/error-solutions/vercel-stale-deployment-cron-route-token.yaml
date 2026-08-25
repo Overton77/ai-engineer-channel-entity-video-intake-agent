@@ -1,0 +1,39 @@
+id: "vercel-stale-deployment-cron-route-token"
+created: "2026-08-25T08:57:00Z"
+updated: "2026-08-25T09:34:00Z"
+
+error:
+  type: "network"
+  category: "HTTP404"
+  language: "vercel"
+  pattern: "Cannot find any route matching [GET] <new-deployment-host>/eve/v1/cron/<old-token>"
+  context: "Deployment-specific verification immediately after a source production deployment"
+
+diagnosis:
+  root_cause: "Eve's generated Vercel Cron route token changes with a source deployment. Reusing the prior deployment's token against the new host addresses no route."
+  factors:
+    - "The production alias had promoted before the next scheduled delivery exposed the new generated token"
+    - "The prior token was copied from an old deployment log entry"
+
+solution:
+  immediate:
+    - "Do not retry the stale token"
+    - "Resolve the current generated route from `vercel inspect <deployment> --json`, or wait for the next scheduled delivery"
+    - "When probing manually, include the generated schedule's x-vercel-cron-schedule header"
+  proper:
+    - "Verify the new deployment using its own later structured schedule outcome"
+  code_change: null
+
+verification:
+  - "New deployment host logs its new generated route token"
+  - "Structured schedule outcome on that host is status disabled"
+
+prevention:
+  - "Treat generated /eve/v1/cron route IDs as deployment-specific"
+  - "Never combine a new deployment hostname with a route token copied from an older deployment"
+
+metadata:
+  occurrences: 2
+  last_resolved: "2026-08-25T09:34:00Z"
+  success_rate: 1.0
+  tags: ["vercel", "eve", "cron", "deployment", "404"]

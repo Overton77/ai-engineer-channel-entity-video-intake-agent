@@ -1,0 +1,43 @@
+id: "google-deepmind-gemma-unit-domain-flattening"
+created: "2026-08-25T10:58:00Z"
+updated: "2026-08-25T12:05:00Z"
+
+error:
+  type: "runtime"
+  category: "SemanticMisclassification"
+  language: "typescript"
+  pattern: "Google DeepMind Gemma packet flattened to independent Google horizontal application"
+  context: "Stateless pre-research organization hydration"
+
+diagnosis:
+  root_cause: "A schema-valid broad candidate bypassed the specific unit: initially Google lacked a unit refinement; on the first reprocess, github.com/google-deepmind was then consumed by the earlier generic GitHub branch before the later DeepMind branch."
+  factors:
+    - "The authoritative taxonomy explicitly names Google DeepMind as a frontier_model_lab"
+    - "The packet's Google parent representation lost the evidenced implementation-owning unit"
+    - "A valid horizontal_ai_application enum concealed the semantic error"
+
+solution:
+  immediate:
+    - "Guardedly supersede only the proven defective applied Gemma packet after slim-38 local ownership is proven"
+  proper:
+    - "Run the specific Google DeepMind/Gemma refinement before the generic GitHub refinement, including the exact github.com/google-deepmind receipt shape"
+    - "Record scope division, parent Google, and domain frontier_model_lab"
+    - "Attach the verified first-party DeepMind Gemma page and organization homepage"
+  code_change: "Slim-41 orders the bounded unit/domain refinement before GitHub and makes the regression start from the exact GitHub receipt-shaped candidate."
+
+verification:
+  - "All 138 tests, TypeScript, and the production build pass"
+  - "Firecrawl verified https://deepmind.google/models/gemma/ and https://deepmind.google/ as current first-party surfaces"
+  - "The slim-39 reprocess proved the prior ordering bug by canonically producing GitHub at github.com/google-deepmind"
+  - "Fresh run e00fc093-5bf3-4f7a-a58d-5feb66b724f4 applied with twelve hash-matched artifacts and twelve operations"
+  - "Canonical verification identifies Google DeepMind, division scope, Google parent, and frontier_model_lab"
+
+prevention:
+  - "Prefer an evidenced dedicated model-building unit over its diversified parent"
+  - "Regression-test wrong-but-valid broad-parent organization results"
+
+metadata:
+  occurrences: 2
+  last_resolved: "2026-08-25T12:01:21Z"
+  success_rate: 1.0
+  tags: ["typescript", "pre-research", "organization-hierarchy", "google-deepmind", "gemma"]

@@ -1,0 +1,40 @@
+id: "taxonomy-enum-object-wrapper-retry"
+created: "2026-08-25T05:35:00Z"
+updated: "2026-08-25T05:42:00Z"
+
+error:
+  type: "runtime"
+  category: "StructuredOutputShapeDrift"
+  language: "typescript"
+  pattern: "Taxonomy evidence_level or lifecycle_stages entries are objects where the slim model schema expects strings"
+  context: "GLM 5.2 transcript taxonomy structured output"
+
+diagnosis:
+  root_cause: "GLM occasionally wraps enum values with rationale metadata even though the slim schema requests scalar strings."
+  factors:
+    - "The semantic enum value is present under bounded keys such as level, stage, lifecycle_stage, form, or difficulty."
+    - "Strict parsing rejected the entire already-paid response and spent a second taxonomy call."
+    - "Two consecutive live videos exhibited evidence_level wrappers; one also wrapped a lifecycle entry."
+
+solution:
+  immediate:
+    - "Allow the bounded stage retry to finish the in-flight slim-17 run."
+  proper:
+    - "Extract only explicit scalar enum keys from object wrappers before exact Zod validation."
+    - "Apply the same bounded normalization to lifecycle, evidence level, difficulty, and content form."
+  code_change: "Slim-18 adds modelEnumText preprocessing while preserving the strict final taxonomy schema and controller hydration."
+
+verification:
+  - "Regression parses object-wrapped evidence_level, lifecycle stages, difficulty, and content form into their exact scalar values."
+  - "Slim-18 passes 115 tests, TypeScript, and production build."
+  - "Production deployment dpl_89gGTtnLnzWiSRmmCLHoervuTDso is Ready and its generated Cron reports disabled."
+
+prevention:
+  - "Normalize only bounded explicit enum keys; never accept arbitrary object prose as a code."
+  - "Keep retry receipts with redacted schema paths so repeated paid shape drift can be converted into deterministic local recovery."
+
+metadata:
+  occurrences: 2
+  last_resolved: "2026-08-25T05:42:00Z"
+  success_rate: 1.0
+  tags: ["glm-5.2", "taxonomy", "structured-output", "retry", "cost", "slim-18"]

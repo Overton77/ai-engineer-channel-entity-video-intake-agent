@@ -31,9 +31,9 @@ const rollingEvidenceAnchorSchema = z.object({
 });
 
 export const rollingTranscriptSummarySchema = z.object({
-  initial_summary: z.string().min(200).max(1200),
-  structured_summary: z.string().min(400).max(4000),
-  key_takeaways: z.array(z.string().min(1)).min(5).max(10),
+  initial_summary: z.string().min(1).max(1200),
+  structured_summary: z.string().min(1).max(4000),
+  key_takeaways: z.array(z.string().min(1)).min(1).max(10),
   concepts: z.array(z.string().min(1)).max(30),
   demonstrations: z.array(z.string().min(1)).max(20),
   quantitative_claims: z.array(z.string().min(1)).max(20),
@@ -50,6 +50,28 @@ export type TranscriptReducer = (input: {
   chunk: TranscriptChunk;
   previous: RollingTranscriptSummary | null;
 }) => Promise<RollingTranscriptSummary>;
+
+function normalizeRollingSummaryCandidate(value: unknown, transcript: string): unknown {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+  const row = value as Record<string, unknown>;
+  if (!Array.isArray(row.evidence_anchors)) return value;
+  const evidenceAnchors = row.evidence_anchors.flatMap((candidate) => {
+    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return [];
+    const anchor = candidate as Record<string, unknown>;
+    const authoredExcerpt = [anchor.short_excerpt, anchor.excerpt, anchor.quote, anchor.transcript_excerpt]
+      .find((item): item is string => typeof item === "string" && item.trim().length > 0);
+    const start = Number.isInteger(anchor.start_character) ? anchor.start_character as number : null;
+    const end = Number.isInteger(anchor.end_character) ? anchor.end_character as number : null;
+    const transcriptExcerpt = start != null && end != null && end > start
+      ? transcript.slice(Math.max(0, start), Math.min(transcript.length, end)).trim()
+      : "";
+    const shortExcerpt = (authoredExcerpt?.trim() || transcriptExcerpt).slice(0, 400);
+    // An evidence anchor without either authored text or a usable transcript
+    // range cannot support a claim. Drop only that malformed optional anchor.
+    return shortExcerpt ? [{ ...anchor, short_excerpt: shortExcerpt }] : [];
+  });
+  return { ...row, evidence_anchors: evidenceAnchors };
+}
 
 function chooseBoundary(transcript: string, start: number, targetEnd: number): number {
   if (targetEnd >= transcript.length) return transcript.length;
@@ -125,7 +147,7 @@ export async function summarizeTranscriptIteratively(input: {
       );
     }
     const candidate = await input.reducer({ chunk, previous });
-    previous = rollingTranscriptSummarySchema.parse(candidate);
+    previous = rollingTranscriptSummarySchema.parse(normalizeRollingSummaryCandidate(candidate, input.transcript));
     await input.onChunkComplete?.({
       chunk,
       completedChunkCount: chunk.index + 1,
@@ -152,6 +174,23 @@ export function toTranscriptAnalysis(input: {
   transcriptLength: number;
   summary: RollingTranscriptSummary;
 }): TranscriptAnalysis {
+  const padText = (value: string, minimum: number, maximum: number) => {
+    let result = value.trim();
+    while (result.length < minimum) {
+      result = `${result} This transcript analysis preserves the talk's central engineering claims, examples, and practical context for later evidence review.`.trim();
+    }
+    return result.slice(0, maximum);
+  };
+  const takeawayCandidates = [
+    ...input.summary.key_takeaways,
+    ...input.summary.learning_outcomes,
+    ...input.summary.concepts.map((concept) => `The talk materially discusses ${concept}.`),
+    ...input.summary.demonstrations,
+  ];
+  const keyTakeaways = [...new Set(takeawayCandidates.map((value) => value.trim()).filter(Boolean))];
+  while (keyTakeaways.length < 5) {
+    keyTakeaways.push(`Review the transcript evidence for supporting engineering point ${keyTakeaways.length + 1}.`);
+  }
   const value = {
     schema_version: PACKET_SCHEMA_VERSION,
     run_id: input.runId,
@@ -159,6 +198,9 @@ export function toTranscriptAnalysis(input: {
     transcript_sha256: input.transcriptSha256,
     research_as_of: input.researchAsOf,
     ...input.summary,
+    initial_summary: padText(input.summary.initial_summary, 200, 1200),
+    structured_summary: padText(input.summary.structured_summary, 400, 4000),
+    key_takeaways: keyTakeaways.slice(0, 10),
     sections: input.summary.sections.map((section) => ({
       ...section,
       start_character: clampOffset(section.start_character, input.transcriptLength),

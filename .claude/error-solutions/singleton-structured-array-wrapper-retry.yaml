@@ -1,0 +1,39 @@
+id: "singleton-structured-array-wrapper-retry"
+created: "2026-08-25T04:22:00Z"
+updated: "2026-08-25T04:22:00Z"
+
+error:
+  type: "schema"
+  category: "ModelShapeDrift"
+  language: "typescript-zod"
+  pattern: "structured stage retries with expected object, received array at the root"
+  context: "Slim GLM organization-research output"
+
+diagnosis:
+  root_cause: "GLM occasionally wraps the requested single object in a one-element top-level array. The semantic payload is unambiguous, but strict root-object validation rejected the wrapper and repeated the entire researched stage."
+  factors:
+    - "Run 531036e3-fa9d-47d1-8eaa-b0b1f33da950 exposed the exact root invalid_type receipt."
+    - "The bounded retry completed and the video applied, proving the content class itself was valid."
+
+solution:
+  immediate:
+    - "Preserve the successfully applied retry result."
+  proper:
+    - "Parse the complete candidate first and, only for an array of exactly one item, also try the sole item."
+    - "Require the exact stage Zod schema after unwrapping; never select from a multi-item array."
+  code_change: "Slim-13 adds structuredCandidateValues alongside alternate-channel recovery."
+
+verification:
+  - "A unit test proves singleton arrays are exposed as a second candidate while multi-item arrays remain intact."
+  - "All 111 tests, TypeScript, and the production build pass."
+  - "Production deployment dpl_AQRojJQqLH7NLm17P6cwzLbTyHak is Ready and its Cron returns HTTP 200 with status disabled."
+
+prevention:
+  - "Normalize only unambiguous transport wrappers at the model boundary."
+  - "Keep stored packet contracts strict and never infer which element of a multi-item root array is intended."
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T04:22:00Z"
+  success_rate: 1.0
+  tags: ["glm", "zod", "array", "wrapper", "retry", "cost", "slim-13"]

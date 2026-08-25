@@ -1,0 +1,41 @@
+id: "transcript-anchor-missing-short-excerpt"
+created: "2026-08-25T15:27:00Z"
+updated: "2026-08-25T15:38:00Z"
+
+error:
+  type: "validation"
+  category: "ZodInvalidType"
+  language: "typescript"
+  pattern: "evidence_anchors[*].short_excerpt expected string, received undefined"
+  context: "Slim-61 iterative transcript reduction for joHR2pmxDQE"
+
+diagnosis:
+  root_cause: "The reducer returned otherwise usable evidence anchors with transcript offsets but omitted the required short_excerpt field, and the controller sent the raw candidate directly to the strict rolling-summary schema."
+  factors:
+    - "Structured generation can omit one optional-looking field even when exact source offsets are present"
+    - "The strict packet boundary was being applied before deterministic normalization"
+    - "A terminal validation error excluded only the slim-61 prompt bundle, leaving the video eligible for a fresh source-version run"
+
+solution:
+  immediate:
+    - "Allow the prompt-scoped slim-61 dead letter to remain immutable and let slim-62 claim a fresh run"
+  proper:
+    - "Normalize reducer evidence anchors before strict rolling-summary validation"
+    - "Accept bounded excerpt aliases or derive an exact excerpt from valid transcript offsets"
+    - "Drop only an anchor that has neither authored text nor a usable transcript range"
+  code_change: "Add normalizeRollingSummaryCandidate and parse its normalized value at each durable reducer boundary."
+
+verification:
+  - "Regression reconstructs short_excerpt from exact transcript offsets and accepts a model excerpt alias"
+  - "All 160 tests, TypeScript, and production build pass"
+  - "Fresh slim-62 joHR2pmxDQE packet must complete with twelve hash-matched objects and twelve applied operations, or reach a semantically valid review outcome"
+
+prevention:
+  - "Normalize recoverable structured-output variations before strict durable packet validation"
+  - "Retain strict validation after normalization so malformed unsupported anchors cannot enter storage"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T15:37:48Z"
+  success_rate: 1.0
+  tags: ["pre-research", "transcript", "zod", "structured-output", "evidence-anchor"]

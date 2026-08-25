@@ -1,0 +1,41 @@
+id: "github-security-domain-overridden-by-copilot-rule"
+created: "2026-08-25T09:51:00Z"
+updated: "2026-08-25T09:51:00Z"
+
+error:
+  type: "runtime"
+  category: "SemanticTaxonomyDefect"
+  language: "typescript"
+  pattern: "GitHub Advanced Security packet classified as coding_agents_developer_tools"
+  context: "Stateless pre-research known-organization hierarchy refinement"
+
+diagnosis:
+  root_cause: "The GitHub hierarchy repair hard-coded the Copilot organization domain for every GitHub transcript, even when the evidenced implementation was GitHub Advanced Security."
+  factors:
+    - "The transcript centers CodeQL, code scanning, secret scanning, Dependabot, supply-chain security, and AI-assisted auto-fix"
+    - "The GitHub subsidiary and Microsoft parent relationship remains correct"
+    - "The packet had twelve hash-matched artifacts and six first-party GitHub sources, isolating the defect to domain choice"
+
+solution:
+  immediate:
+    - "Within the bounded GitHub hierarchy rule, choose ai_security_identity_governance when explicit security-product markers are present"
+    - "Keep coding_agents_developer_tools as the default for GitHub Copilot and ordinary coding-tool talks"
+  proper:
+    - "Regression-test both the security specialization and the existing Copilot hierarchy/domain behavior"
+    - "Guarded-supersede the applied security packet only after slim-33 owns the local drain"
+  code_change: "controller/stages/stage-runner.ts and tests/stateless-pre-research.test.mts"
+
+verification:
+  - "Focused GitHub security and Copilot regressions pass"
+  - "Full 131-test suite, TypeScript, and production build pass"
+  - "Reprocessed packet preserves GitHub subsidiary and Microsoft parent while using ai_security_identity_governance"
+
+prevention:
+  - "Known-organization hierarchy refinements must not collapse distinct evidenced product domains"
+  - "Use narrow transcript capability markers before overriding a schema-valid model domain"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T09:51:00Z"
+  success_rate: 1.0
+  tags: ["pre-research", "taxonomy", "github", "security", "hierarchy"]

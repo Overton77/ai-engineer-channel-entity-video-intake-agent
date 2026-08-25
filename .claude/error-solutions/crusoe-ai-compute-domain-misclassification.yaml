@@ -1,0 +1,37 @@
+id: "crusoe-ai-compute-domain-misclassification"
+created: "2026-08-25T11:22:00Z"
+updated: "2026-08-25T12:20:00Z"
+
+error:
+  type: "runtime"
+  category: "SemanticMisclassification"
+  language: "typescript"
+  pattern: "Crusoe GPU cloud and InfiniBand systems classified as horizontal_ai_application"
+  context: "Stateless pre-research organization hydration"
+
+diagnosis:
+  root_cause: "Hydration preserved a generic application enum despite transcript-explicit GPU clusters, InfiniBand, distributed training, and rail-optimized compute infrastructure."
+  factors:
+    - "Crusoe is the independent implementation owner"
+    - "The talk centers tightly coupled AI compute systems rather than a horizontal end-user application"
+
+solution:
+  immediate:
+    - "Guardedly supersede only the proven defective applied packet after slim-44 ownership"
+  proper:
+    - "Add a Crusoe identity plus GPU/networking/distributed-training evidence refinement"
+  code_change: "Slim-44 assigns the bounded ai_compute_hardware_systems domain."
+
+verification:
+  - "All 141 tests, TypeScript, and the production build pass"
+  - "Fresh slim-45 run 64dad39b-5f0e-4a2f-aaa2-ffce9ca85091 applied with twelve hash-matched artifacts and twelve operations"
+  - "Canonical verification identifies Crusoe as independent with ai_compute_hardware_systems and three organization sources"
+
+prevention:
+  - "Classify AI cloud infrastructure by its defining compute-system role when the evidence is hardware/network centric"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T12:19:23Z"
+  success_rate: 1.0
+  tags: ["typescript", "pre-research", "organization-domain", "crusoe", "ai-compute"]

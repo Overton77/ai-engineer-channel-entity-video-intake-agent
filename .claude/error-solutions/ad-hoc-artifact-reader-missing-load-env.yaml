@@ -1,0 +1,36 @@
+id: "ad-hoc-artifact-reader-missing-load-env"
+created: "2026-08-25T06:53:00Z"
+updated: "2026-08-25T06:53:00Z"
+
+error:
+  type: "configuration"
+  category: "MissingEnvironmentInitialization"
+  language: "nodejs"
+  pattern: "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in an ad-hoc artifact reader"
+  context: "Inline diagnostic script importing agent/lib/supabase-storage.ts"
+
+diagnosis:
+  root_cause: "The inline diagnostic imported the storage helper directly but did not call the repository's loadEnv() initializer used by normal query scripts."
+  factors:
+    - "The storage helper reads process.env at call time."
+    - "The canonical query script initializes .env.local explicitly; the one-off reader initially did not."
+
+solution:
+  immediate:
+    - "Import loadEnv from scripts/load-env.mjs and call loadEnv() before downloadObject()."
+  proper:
+    - "Mirror canonical query-script environment initialization in every ad-hoc storage diagnostic."
+  code_change: null
+
+verification:
+  - "The repeated read downloaded and parsed transcript, organization, source-verification, and profile artifacts successfully."
+
+prevention:
+  - "Use scripts/query-pre-research.mts where possible."
+  - "When a custom artifact projection is necessary, initialize environment configuration before invoking storage helpers."
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T06:53:00Z"
+  success_rate: 1.0
+  tags: ["supabase", "diagnostics", "environment", "load-env"]

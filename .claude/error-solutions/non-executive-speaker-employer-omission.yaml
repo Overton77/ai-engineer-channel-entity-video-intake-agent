@@ -1,0 +1,45 @@
+id: "non-executive-speaker-employer-omission"
+created: "2026-08-25T06:16:00Z"
+updated: "2026-08-25T06:16:00Z"
+
+error:
+  type: "runtime"
+  category: "OrganizationIdentityOmission"
+  language: "typescript"
+  pattern: "A talk with an explicit non-executive speaker employer terminalizes with an empty organization set"
+  context: "Stateless organization-research hydration and bounded web research"
+
+diagnosis:
+  root_cause: "Transcript-derived organization recovery recognized only founder and executive role phrases, while the organization research instruction did not require an official employer-domain search."
+  factors:
+    - "The transcript explicitly said the speaker was a senior AI engineer at Tinder."
+    - "The organization searches returned person profiles, parent-company SEC filings, and technology acquisition context but no tinder.com result."
+    - "Unmatched deep result URLs could previously be considered as fallback organization surfaces."
+
+solution:
+  immediate:
+    - "Do not approve the empty-organization review as a genuine no-organization packet."
+    - "Use the guarded review supersession path to preserve the old packet and reopen the video."
+  proper:
+    - "Extract bounded engineer, scientist, researcher, developer, manager, director, and architect role-at-company phrases."
+    - "Require one organization-stage search for an explicitly stated employer's official homepage and implementation documentation."
+    - "Accept unmatched receipt domains only for query-anchored root homepages, never arbitrary deep filing/result paths."
+  code_change: "Slim-20 implements non-executive employer extraction, employer-first search guidance, and receipt-host safeguards."
+
+verification:
+  - "Regression recovers Tinder at https://tinder.com/ from a matching official receipt."
+  - "Regression rejects a nonmatching deep sec.gov result as Tinder's canonical URL."
+  - "Regression preserves nonstandard official root domains such as New Computer at getdot.ai."
+  - "All 117 tests, TypeScript, and production build pass."
+  - "Production deployment dpl_ERg43GTWDzVbKyjE7w6XjmN5u3Du is Ready and its generated Cron reports disabled."
+  - "Fresh slim-20 run 38e9d0d9-812b-4382-b6e1-b587d6856513 canonically verifies Tinder as primary on a first-party Tinder domain, twelve hash-matched objects, and twelve applied operations."
+
+prevention:
+  - "Treat any explicit speaker employer role as organization identity evidence, not only founder/CEO roles."
+  - "Inspect review-required packets against transcript title/preview before accepting an empty organization set."
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T06:16:00Z"
+  success_rate: 1.0
+  tags: ["organization", "identity", "speaker-employer", "review-required", "tinder", "slim-20"]

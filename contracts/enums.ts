@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const PROMPT_BUNDLE_VERSION = "pre-research-2.0.0";
+export const PROMPT_BUNDLE_VERSION = "pre-research-v3-stateless-slim-62";
 export const PACKET_SCHEMA_VERSION = "2.0.0";
 export const INTENT_SCHEMA_VERSION = "2.0.0";
 export const V1_INTENT_SCHEMA_VERSION = "1.0.0";

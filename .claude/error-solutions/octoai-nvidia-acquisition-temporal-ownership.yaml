@@ -1,0 +1,42 @@
+id: "octoai-nvidia-acquisition-temporal-ownership"
+created: "2026-08-25T10:33:54Z"
+updated: "2026-08-25T10:33:54Z"
+
+error:
+  type: "runtime"
+  category: "TemporalOwnershipMisclassification"
+  language: "typescript"
+  pattern: "OctoAI packet records Octoai as independent after NVIDIA acquisition"
+  context: "Stateless pre-research organization hydration"
+
+diagnosis:
+  root_cause: "Model-authored organization output omitted the post-video NVIDIA acquisition, and deterministic hydration defaulted every unrecognized organization to independent ownership with generic current status."
+  factors:
+    - "The authoritative plan requires video-time and current names/ownership"
+    - "Search receipts surfaced NVIDIA but did not convert that evidence into parent fields"
+    - "Model casing was also preserved as Octoai instead of OctoAI"
+
+solution:
+  immediate:
+    - "Verify acquisition evidence against NVIDIA first-party material"
+    - "Guardedly supersede only the proven defective applied packet"
+  proper:
+    - "Add a bounded OctoAI identity and inference-platform refinement"
+    - "Preserve video-time OctoAI identity, current NVIDIA parentage, and ownership-changed status"
+    - "Attach NVIDIA's first-party acquisition evidence to the organization sources"
+  code_change: "Slim-35 adds temporal-field plumbing, bounded OctoAI refinement, acquisition source, and regression."
+
+verification:
+  - "All 133 tests, TypeScript, and build pass"
+  - "Reprocessed packet has twelve hash-matched artifacts and twelve applied operations"
+  - "Canonical profile records OctoAI at octo.ai, NVIDIA parentage, ownership_changed_since_video=true, and two verified authoritative sources"
+
+prevention:
+  - "Audit organization profiles for acquisitions surfaced in search receipts"
+  - "Regression-test brand casing together with video-time versus research-time ownership"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T10:33:54Z"
+  success_rate: 1.0
+  tags: ["typescript", "pre-research", "organization-ownership", "acquisition", "octoai", "nvidia"]

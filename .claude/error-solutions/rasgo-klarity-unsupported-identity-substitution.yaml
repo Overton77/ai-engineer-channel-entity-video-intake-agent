@@ -1,0 +1,39 @@
+id: "rasgo-klarity-unsupported-identity-substitution"
+created: "2026-08-25T13:08:00Z"
+updated: "2026-08-25T13:51:00Z"
+
+error:
+  type: "semantic"
+  category: "OrganizationIdentityMisclassification"
+  language: "typescript"
+  pattern: "Klarity promoted over transcript-explicit Rasgo without verified ownership lineage"
+  context: "Canonical audits of slim-49 run 65aaa6ab-4295-4bf9-8f8a-f45733ab9d38 and slim-53 run ee165e3a-b271-4d50-86bd-9146cc676e94"
+
+diagnosis:
+  root_cause: "An ASR spelling of Rasgo as Rosco prevented transcript/receipt identity matching, after which a generic Klarity search result was promoted without lineage evidence."
+  factors:
+    - "The transcript says Patrick was co-founder and CTO of Rosco and built its AI agents"
+    - "Official Rasgo pages and speaker profiles establish the intended Rasgo identity"
+    - "Neither Firecrawl nor the packet receipts established a Rasgo-to-Klarity acquisition, rebrand, or ownership relationship"
+    - "The first correction required a Rasgo/Klarity candidate, so slim-53 bypassed it after promoting Claude"
+    - "The second correction required co-founder and CTO, while slim-55's durable summary inserted former CTO"
+
+solution:
+  immediate:
+    - "Normalize the bounded Patrick/Rosco ASR identity to Rasgo and discard the unsupported Klarity substitution"
+  proper:
+    - "Require transcript co-founder/(optional former) CTO plus AI-agent evidence and restore Rasgo regardless of the model-ranked supporting candidate"
+    - "Assign Rasgo's enterprise agent/analytics product to enterprise_ai_automation"
+  code_change: "controller/stages/stage-runner.ts and tests/stateless-pre-research.test.mts"
+
+verification:
+  - "Focused Rasgo identity regression passes"
+  - "Fresh packet must use Rasgo, rasgoml.com, and enterprise_ai_automation"
+
+prevention:
+  - "Treat ASR near-matches against first-party speaker-company receipts before accepting a separately searched organization"
+
+metadata:
+  occurrences: 3
+  last_resolved: "2026-08-25T14:05:00Z"
+  success_rate: 1.0

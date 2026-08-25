@@ -1,0 +1,37 @@
+id: "firecrawl-feedback-window-and-search-job-id"
+created: "2026-08-25T12:03:00Z"
+updated: "2026-08-25T12:03:00Z"
+
+error:
+  type: "tooling"
+  category: "FeedbackSubmission"
+  language: "powershell"
+  pattern: "FEEDBACK_WINDOW_EXPIRED or FIRECRAWL_SEARCH_JOB_ID_MISSING"
+  context: "Submitting quality feedback for Firecrawl search"
+
+diagnosis:
+  root_cause: "Feedback was first delayed beyond 120 seconds, then the retry parser looked for data.id even though the CLI returns the job id at the top-level id field."
+  factors:
+    - "Code gates and deployment consumed the original feedback window"
+    - "Search results are nested under data.web, but the job identifier is not nested under data"
+
+solution:
+  immediate:
+    - "Repeat the same search, read the top-level id, and submit feedback immediately"
+  proper:
+    - "Send Firecrawl feedback directly after inspecting search output and before unrelated long-running gates"
+  code_change: null
+
+verification:
+  - "Feedback 01a038cc-dbb0-7724-ae52-e9b5c061a7ea was accepted"
+  - "One search credit was refunded"
+
+prevention:
+  - "Treat the 120-second feedback window as part of the Firecrawl command lifecycle"
+  - "Parse search job id from the response's top-level id field"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T12:03:00Z"
+  success_rate: 1.0
+  tags: ["firecrawl", "feedback", "operator"]

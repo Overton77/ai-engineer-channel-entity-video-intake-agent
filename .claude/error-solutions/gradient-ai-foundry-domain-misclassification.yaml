@@ -1,0 +1,40 @@
+id: "gradient-ai-foundry-domain-misclassification"
+created: "2026-08-25T12:03:00Z"
+updated: "2026-08-25T12:23:00Z"
+
+error:
+  type: "semantic"
+  category: "OrganizationDomainMisclassification"
+  language: "typescript"
+  pattern: "Gradient AI Foundry and custom/domain LLM training classified as horizontal_ai_application"
+  context: "Canonical audit of slim-44 Albatross/Gradient packet"
+
+diagnosis:
+  root_cause: "The generic organization output was schema-valid but no identity-bounded refinement mapped Gradient's custom-model training platform to the narrower organization taxonomy."
+  factors:
+    - "The transcript explicitly describes AI Foundry, custom language models, continual pre-training, and fine-tuning"
+    - "The applied packet already resolved Gradient and its official documentation host correctly"
+
+solution:
+  immediate:
+    - "Add a Gradient identity plus explicit model-training evidence refinement to model_training_inference_platform"
+  proper:
+    - "Keep the rule bounded to gradient.ai/Gradient and AI Foundry, custom/domain language models, training, fine-tuning, or deployment evidence"
+    - "Version the controller as pre-research-v3-stateless-slim-45 and reprocess only through guarded supersession"
+  code_change: "controller/stages/stage-runner.ts and tests/stateless-pre-research.test.mts"
+
+verification:
+  - "Focused Gradient regression passes"
+  - "All 142 tests, TypeScript, and production build pass"
+  - "Production deployment dpl_3F7pmjGCAekbP1xEgjL8z8qeKgtM is Ready and its Cron gate logged disabled"
+  - "Fresh slim-45 run dec1fb2b-3403-4a5e-ae91-ff7c631bb12d applied with twelve hash-matched artifacts and twelve operations"
+  - "Canonical verification identifies Gradient as independent with model_training_inference_platform and five organization sources"
+
+prevention:
+  - "Audit organization domains semantically after every durable packet, not only schema and apply mechanics"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T12:22:57Z"
+  success_rate: 1.0
+  tags: ["organization-domain", "gradient", "model-training", "pre-research"]

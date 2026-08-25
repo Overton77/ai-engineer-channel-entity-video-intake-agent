@@ -1,0 +1,39 @@
+id: "balanced-multi-object-json-retry"
+created: "2026-08-25T04:39:00Z"
+updated: "2026-08-25T04:39:00Z"
+
+error:
+  type: "structured-output"
+  category: "MultipleJsonObjects"
+  language: "typescript-json"
+  pattern: "STAGE_STRUCTURED_OUTPUT_INVALID with unexpected comma after whole-response JSON repair"
+  context: "Slim GLM web-context generation"
+
+diagnosis:
+  root_cause: "A response contained multiple brace-balanced JSON objects separated by prose or punctuation. First-brace-to-last-brace extraction treated them as one invalid document, and jsonrepair could not resolve the unexpected comma."
+  factors:
+    - "Slim-14 run 8e060a5c-5a0e-480e-af7a-b317c8ae93bb exposed Unexpected character comma at position 2314 on web-context attempt 1."
+    - "Attempt 2 succeeded and the run applied, proving the retry machinery but consuming another full model generation."
+
+solution:
+  immediate:
+    - "Allow the bounded live retry to finish; do not interrupt the leased generation."
+  proper:
+    - "Scan response text with string and escape awareness and expose every complete top-level brace-balanced object as a local parse candidate."
+    - "Accept a candidate only if the exact stage Zod schema validates it."
+  code_change: "Slim-15 adds balancedJsonObjectCandidates to the zero-call local recovery chain."
+
+verification:
+  - "A unit test proves braces inside quoted strings and escaped quotes do not split candidates."
+  - "All 113 tests, TypeScript, and the production build pass."
+  - "Production deployment dpl_2AyRNcMBSTawJmS9kFinmv2mgNRd is Ready and its Cron returns HTTP 200 with status disabled."
+
+prevention:
+  - "Try already-paid response fragments locally before issuing another model call."
+  - "Keep strict schema validation as the only acceptance boundary."
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T04:38:20Z"
+  success_rate: 1.0
+  tags: ["glm", "json", "balanced", "retry", "cost", "slim-15"]

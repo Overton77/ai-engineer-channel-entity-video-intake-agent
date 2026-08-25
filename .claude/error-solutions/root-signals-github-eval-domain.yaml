@@ -1,0 +1,40 @@
+id: "root-signals-github-eval-domain"
+created: "2026-08-25T14:45:00Z"
+updated: "2026-08-25T15:31:28Z"
+
+error:
+  type: "semantic"
+  category: "OrganizationTaxonomy"
+  language: "typescript"
+  pattern: "Root Signals agent-evaluation platform classified as coding_agents_developer_tools from a GitHub organization URL"
+  context: "Canonical audit of slim-59 Agent Evals packet"
+
+diagnosis:
+  root_cause: "The generic GitHub inference overrode the organization's transcript-explicit evaluation, LLM-as-judge, tracing, and Eval Ops role, while receipt recovery selected the GitHub organization instead of the first-party corporate host."
+  factors:
+    - "GitHub is a delivery surface and does not imply the organization builds coding agents"
+    - "The model returned a schema-valid but semantically wrong coding domain"
+    - "The corporate agent-evals page was present but ranked as secondary because the wrong canonical host had already won"
+
+solution:
+  immediate:
+    - "Preserve Root Signals as the implementation-owning organization"
+  proper:
+    - "Canonicalize to https://rootsignals.ai/"
+    - "Assign evaluation_observability_llmops when Root Signals and agent-eval/Eval Ops evidence co-occur"
+    - "Treat the first-party agent-evals page as official product evidence"
+  code_change: "Add a Root Signals evaluation refinement before the generic GitHub organization rule."
+
+verification:
+  - "Regression returns Root Signals at rootsignals.ai with evaluation_observability_llmops"
+  - "Fresh reprocessed packet has twelve hash-matched objects and twelve applied operations"
+
+prevention:
+  - "Do not infer an organization's durable domain from its repository host"
+  - "Prefer transcript and first-party product semantics over generic URL-based fallbacks"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T15:29:50Z"
+  success_rate: 1.0
+  tags: ["pre-research", "taxonomy", "root-signals", "evaluation", "github"]

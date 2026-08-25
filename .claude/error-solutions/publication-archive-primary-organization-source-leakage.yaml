@@ -1,0 +1,43 @@
+id: "publication-archive-primary-organization-source-leakage"
+created: "2026-08-25T06:55:00Z"
+updated: "2026-08-25T06:55:00Z"
+
+error:
+  type: "runtime"
+  category: "OrganizationSourceIdentityLeakage"
+  language: "typescript"
+  pattern: "A cited paper archive becomes an organization entity and is attached as a first-party source for an unrelated primary organization"
+  context: "Deterministic web-context hydration and organization-profile assembly"
+
+diagnosis:
+  root_cause: "Fallback hydration treated any result hostname token mentioned in the transcript as an organization, while profile assembly selected the first six verified global resources without rechecking their relationship to the primary organization."
+  factors:
+    - "The transcript cited a 2015 NIPS paper and separately described Mastercard's LLM adoption."
+    - "papers.nips.cc was converted into a synthetic Nips homepage/entity."
+    - "The verified global resource list was mechanically assigned to Mastercard, making the unrelated NIPS homepage its sixth required organization source."
+
+solution:
+  immediate:
+    - "Do not accept mechanical hash/application success as semantic proof when organization-source domains contradict the primary."
+    - "Preserve the applied packet and use guarded applied-run supersession after deploying the corrected prompt bundle."
+  proper:
+    - "Exclude publication/archive hosts from fallback organization identity while retaining their paper resources."
+    - "Require organization-profile sources to share the primary official host or explicitly name the primary through a bounded alias match."
+    - "Keep unrelated verified papers and context as global resources rather than organization sources."
+  code_change: "Slim-21 adds publication-host decontamination and primary-organization source relevance filtering."
+
+verification:
+  - "Regression keeps deep Supabase documentation recovery intact."
+  - "Regression prevents a deep papers.nips.cc result from creating a Nips organization or synthetic homepage."
+  - "Regression rejects the NIPS paper as a Mastercard organization source while accepting Mastercard first-party pages."
+  - "All 120 tests, TypeScript, and production build pass."
+
+prevention:
+  - "Audit organization source domains separately from global resource candidates."
+  - "Require semantic relationship checks at the final organization-profile boundary, not only during web hydration."
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T06:55:00Z"
+  success_rate: 1.0
+  tags: ["organization", "source-verification", "publication", "nips", "mastercard", "slim-21"]

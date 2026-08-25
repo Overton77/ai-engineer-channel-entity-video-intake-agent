@@ -1,0 +1,38 @@
+id: "postgres-update-target-lateral-reference"
+created: "2026-08-24T01:15:00Z"
+updated: "2026-08-24T01:15:00Z"
+
+error:
+  type: "database"
+  category: "InvalidColumnReference"
+  language: "postgresql"
+  pattern: "invalid reference to FROM-clause entry for table {update_target}"
+  context: "UPDATE target FROM LATERAL subquery references the UPDATE target alias"
+
+diagnosis:
+  root_cause: "PostgreSQL does not expose the UPDATE target relation to that LATERAL FROM item."
+  factors:
+    - "The reconciliation aggregate was correlated directly to the update target alias."
+    - "Schema lint does not execute newly authored, unapplied function bodies."
+
+solution:
+  immediate:
+    - "Replace the correlated LATERAL item with a CTE that groups stage rows and artifacts by stage_execution_id."
+  proper:
+    - "Join the aggregate CTE back to the UPDATE target by primary key."
+  code_change: "research_private.reconcile_pre_research_stage_rows now uses a completed CTE and UPDATE ... FROM completed."
+
+verification:
+  - "Reapply the idempotent CREATE OR REPLACE migration transaction."
+  - "Reconcile all current unfinished runs and confirm completed/pending stage counts."
+
+prevention:
+  - "Run every new security-definer RPC against a live transaction-safe probe before cutover."
+  - "Keep a reconciliation integration probe in the deployment checklist."
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-24T01:15:00Z"
+  success_rate: 1.0
+  tags: ["postgresql", "plpgsql", "lateral", "supabase"]
+

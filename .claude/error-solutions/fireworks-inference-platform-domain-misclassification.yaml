@@ -1,0 +1,38 @@
+id: "fireworks-inference-platform-domain-misclassification"
+created: "2026-08-25T12:34:00Z"
+updated: "2026-08-25T12:45:50Z"
+
+error:
+  type: "semantic"
+  category: "OrganizationDomainMisclassification"
+  language: "typescript"
+  pattern: "Fireworks AI production inference and model serving classified as horizontal_ai_application"
+  context: "Canonical audit of slim-45 customized production-ready inference packet"
+
+diagnosis:
+  root_cause: "The schema-valid generic application label survived hydration because no identity-bounded refinement mapped Fireworks AI's model-serving platform to the narrower organization taxonomy."
+  factors:
+    - "The transcript explicitly describes customized production-ready inference for open-source models"
+    - "The packet correctly resolves Fireworks AI and six first-party product and inference sources"
+
+solution:
+  immediate:
+    - "Add a Fireworks AI identity plus explicit inference/model-serving evidence refinement to model_training_inference_platform"
+  proper:
+    - "Keep the rule bounded to fireworks.ai/Fireworks AI and inference, serving, serverless, fine-tuning, deployment, or open-source-model evidence"
+    - "Version the controller as pre-research-v3-stateless-slim-47 and reprocess only through guarded supersession after local ownership proof"
+  code_change: "controller/stages/stage-runner.ts and tests/stateless-pre-research.test.mts"
+
+verification:
+  - "Focused Fireworks AI regression passes"
+  - "All 146 current tests, TypeScript, and production build pass"
+  - "Fresh slim-49 run d4a66c37-7d2e-4d6c-bd71-a3bdeac8600d applied twelve hash-matched artifacts and twelve operations"
+  - "Canonical result identifies Fireworks AI with six first-party sources and model_training_inference_platform"
+
+prevention:
+  - "Continue semantic domain audits after each durable packet instead of relying only on schema validity"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T12:45:50Z"
+  success_rate: 1.0

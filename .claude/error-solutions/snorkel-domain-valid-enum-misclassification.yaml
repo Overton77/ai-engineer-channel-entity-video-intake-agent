@@ -1,0 +1,41 @@
+id: "snorkel-domain-valid-enum-misclassification"
+created: "2026-08-25T09:35:00Z"
+updated: "2026-08-25T09:35:00Z"
+
+error:
+  type: "runtime"
+  category: "SemanticTaxonomyDefect"
+  language: "typescript"
+  pattern: "Snorkel data-development packet classified as horizontal_ai_application"
+  context: "Stateless pre-research organization-domain hydration"
+
+diagnosis:
+  root_cause: "Controller hydration preserves schema-valid model domain enums, so Snorkel's platform can retain the generic end-user application label despite first-party data-development evidence."
+  factors:
+    - "The authoritative taxonomy explicitly lists Snorkel under ai_data_curation_training_platform"
+    - "The packet's six verified first-party sources cover data development, training data, fine-tuning, and alignment"
+    - "All packet hashes and operations were healthy, isolating the defect to semantic classification"
+
+solution:
+  immediate:
+    - "Add a bounded Snorkel refinement requiring its official host/name plus transcript evidence for Snorkel and data development, training data, curation, fine-tuning, alignment, or labeling"
+    - "Set primary_domain_code to ai_data_curation_training_platform while preserving independent-company identity"
+  proper:
+    - "Regression-test the observed valid-but-wrong horizontal_ai_application model output"
+    - "Guarded-supersede the old applied packet after slim-30 owns the local drain"
+  code_change: "controller/stages/stage-runner.ts and tests/stateless-pre-research.test.mts"
+
+verification:
+  - "Focused topology regression passes"
+  - "Full 129-test suite, TypeScript, and production build pass"
+  - "Reprocessed packet must show ai_data_curation_training_platform, twelve objects, and twelve applied operations"
+
+prevention:
+  - "Audit representative organization domains against the precise implementation-plan inclusion rules"
+  - "Require both identity and transcript capability evidence for bounded semantic corrections"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T09:35:00Z"
+  success_rate: 1.0
+  tags: ["pre-research", "taxonomy", "snorkel", "data-curation"]

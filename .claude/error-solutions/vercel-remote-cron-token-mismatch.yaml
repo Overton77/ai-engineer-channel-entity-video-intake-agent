@@ -1,0 +1,36 @@
+id: "vercel-remote-cron-token-mismatch"
+created: "2026-08-25T13:02:00Z"
+updated: "2026-08-25T13:02:00Z"
+
+error:
+  type: "runtime"
+  category: "DeploymentRouteMismatch"
+  language: "vercel"
+  pattern: "Cannot find any route matching [GET] /eve/v1/cron/{token}"
+  context: "Verifying a protected production Eve Cron deployment"
+
+diagnosis:
+  root_cause: "The verification used the local .vercel/output randomized Cron token, but Vercel's remote build generated a different deployment-specific token."
+  factors:
+    - "Eve generates the Cron route during each build"
+    - "Local and remote build outputs are not route-token authorities for one another"
+
+solution:
+  immediate:
+    - "Read the remote route from `vercel inspect <deployment> --json` under builds[].output[].path"
+  proper:
+    - "Invoke that exact route with `vercel curl`, the generated x-vercel-cron-schedule header, and the exact deployment ID"
+    - "Confirm the structured schedule outcome in deployment-specific Vercel logs"
+  code_change: null
+
+verification:
+  - "The remote route returns success:true"
+  - "Production logs show [pre-research-schedule] outcome { status: 'disabled' }"
+
+prevention:
+  - "Never copy a Cron token from local build output when auditing a remote deployment"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T13:02:35Z"
+  success_rate: 1.0

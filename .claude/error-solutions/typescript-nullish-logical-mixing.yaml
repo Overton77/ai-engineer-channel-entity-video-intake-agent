@@ -1,0 +1,37 @@
+id: "typescript-nullish-logical-mixing"
+created: "2026-08-25T08:16:00Z"
+updated: "2026-08-25T08:16:00Z"
+
+error:
+  type: "syntax"
+  category: "InvalidTypeScriptSyntax"
+  language: "typescript"
+  pattern: "Nullish coalescing operator requires parens when mixing with logical operators"
+  context: "Organization hierarchy fallback in the stateless stage runner"
+
+diagnosis:
+  root_cause: "A nullish fallback and a logical-or empty-string fallback were written in one unparenthesized expression, which JavaScript intentionally rejects as ambiguous."
+  factors:
+    - "The expression combined optional chaining, nullish coalescing, and logical OR."
+    - "The parser fails before runtime tests can import the controller module."
+
+solution:
+  immediate:
+    - "Parenthesize the logical-or fallback on the right side of the nullish operator."
+  proper:
+    - "Use `left ?? (right || null)` when null/undefined and empty-string fallbacks intentionally differ."
+  code_change: "controller/stages/stage-runner.ts parenthesizes the raw parent-name fallback and preserves nullable model URL typing."
+
+verification:
+  - "Full 124-test suite passes."
+  - "TypeScript typecheck passes."
+  - "Production build passes."
+
+prevention:
+  - "Run the parser-backed test suite and typecheck before a boundary handoff loads changed source."
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T08:16:00Z"
+  success_rate: 1.0
+  tags: ["typescript", "syntax", "nullish-coalescing", "slim-25"]

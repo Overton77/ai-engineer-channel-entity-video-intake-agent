@@ -1,0 +1,37 @@
+id: "organization-profile-validator-drift"
+created: "2026-08-25T01:15:00Z"
+updated: "2026-08-25T01:15:00Z"
+
+error:
+  type: "runtime"
+  category: "InvariantDrift"
+  language: "typescript"
+  pattern: "organization_profile deterministic stage dead-letters on authoritative technical source validation"
+  context: "Thin organization evidence should produce review_required, not a terminal stage failure"
+
+diagnosis:
+  root_cause: "Controller-side thin-evidence detection duplicated the contract validator with a broader authority-tier check, so it assigned a known domain that the canonical schema correctly rejected."
+  factors:
+    - "The controller treated every tier except reputable_secondary as authoritative."
+    - "The contract accepts only first_party, official_registry, and standards_body."
+
+solution:
+  immediate:
+    - "Requeue only the exact dead-lettered organization_profile stage after confirming no profile artifact exists."
+  proper:
+    - "Call validateAuthoritativeSourceMinimum directly and conservatively assign other_unknown plus review_required whenever it fails."
+    - "Project a dead-lettered stage to failed immediately so the serial batch can defer it and continue."
+  code_change: "buildOrganizationProfileContent now uses the canonical validator; runPreResearchPipeline immediately calls failRunWithDeadLetter for terminal receipts."
+
+verification:
+  - "The repaired bDQn1w0idXs run completed organization_profile and ingestion_intent without another model call and reached review_required."
+  - "The serial worker deferred the review packet and claimed the next video."
+
+prevention:
+  - "Do not duplicate cross-file contract invariants in controller heuristics; import the canonical validator."
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T01:13:51Z"
+  success_rate: 1.0
+  tags: ["organization-profile", "zod", "invariants", "review-required", "dead-letter"]

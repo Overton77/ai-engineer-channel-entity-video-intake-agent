@@ -1,0 +1,38 @@
+id: "pre-research-stage-ledger-diagnostic-schema"
+created: "2026-08-25T08:08:00Z"
+updated: "2026-08-25T08:08:00Z"
+
+error:
+  type: "database"
+  category: "UndefinedTableOrColumn"
+  language: "sql"
+  pattern: "relation research_pre_research_stage does not exist or column error_code does not exist"
+  context: "Read-only operator health query for a live stateless pre-research run"
+
+diagnosis:
+  root_cause: "The ad hoc diagnostic guessed abbreviated ledger identifiers instead of using the controller's authoritative schema names."
+  factors:
+    - "The stage table is research_pre_research_stage_execution."
+    - "Stage errors use last_error_code and last_error_detail."
+
+solution:
+  immediate:
+    - "Use public.research_pre_research_stage_execution and select last_error_code."
+  proper:
+    - "Copy diagnostic identifiers from controller/stages/ledger.ts or controller/pre-research-pipeline.ts before querying."
+  code_change: null
+
+verification:
+  - "The corrected read returned all nine stages for run c19a308a-1cda-44d8-be76-43a5d94a7020."
+  - "Every stage was completed on attempt 1 with no last_error_code."
+  - "The live worker continued to the next video; no mutation was issued."
+
+prevention:
+  - "Prefer the existing query and inspection scripts for routine audits."
+  - "When an ad hoc query is necessary, derive table and column names from checked-in controller SQL."
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T08:08:00Z"
+  success_rate: 1.0
+  tags: ["postgres", "operator-diagnostic", "stage-ledger", "read-only"]

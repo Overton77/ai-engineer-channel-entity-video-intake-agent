@@ -1,0 +1,35 @@
+id: "postgres-jsonb-object-cardinality"
+created: "2026-08-24T01:25:00Z"
+updated: "2026-08-24T01:25:00Z"
+
+error:
+  type: "database"
+  category: "UndefinedFunction"
+  language: "postgresql"
+  pattern: "function jsonb_object_length(jsonb) does not exist"
+  context: "Validate the number of registered artifact hashes in a JSONB object"
+
+diagnosis:
+  root_cause: "PostgreSQL provides jsonb_array_length but not jsonb_object_length."
+  factors:
+    - "The completion path was exercised only after a real stage registered an artifact."
+
+solution:
+  immediate:
+    - "Count rows returned by jsonb_object_keys(coalesce(value, '{}'::jsonb))."
+  proper:
+    - "Compare that count with the expected artifact-kind cardinality inside the completion transaction."
+  code_change: "research_private.complete_pre_research_stage now counts jsonb_object_keys."
+
+verification:
+  - "Reapply the idempotent function migration."
+  - "Reconcile the parked stage and confirm the registered artifact hash marks it completed without a second model call."
+
+prevention:
+  - "Exercise success-path completion RPCs with a rolled-back fixture before production cutover."
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-24T01:25:00Z"
+  success_rate: 1.0
+  tags: ["postgresql", "jsonb", "supabase", "artifact-ledger"]

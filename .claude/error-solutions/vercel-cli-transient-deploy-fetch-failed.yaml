@@ -1,0 +1,37 @@
+id: "vercel-cli-transient-deploy-fetch-failed"
+created: "2026-08-25T13:31:00Z"
+updated: "2026-08-25T13:31:00Z"
+
+error:
+  type: "network"
+  category: "DeploymentUploadFailure"
+  language: "nodejs"
+  pattern: "Vercel CLI deploy returns status=error reason=deploy_failed message=fetch failed before a deployment ID is emitted"
+  context: "Slim-55 production source deployment with PRE_RESEARCH_SCHEDULE_ENABLED=false"
+
+diagnosis:
+  root_cause: "A transient Vercel CLI/network fetch failed during deployment upload or API coordination; the source build gates had already passed and no deployment identity was created."
+  factors:
+    - "The failed attempt emitted no Inspect URL or deployment ID"
+    - "The previous production artifact remained healthy and schedule-disabled"
+
+solution:
+  immediate:
+    - "Retry the identical source deployment with the same project scope"
+  proper:
+    - "Treat only pre-identity fetch failures as idempotently retryable, then verify the successful deployment and its disabled Cron outcome"
+  code_change: null
+
+verification:
+  - "The retry emits a Ready deployment ID and production alias"
+  - "The generated deployment-specific Cron route logs status disabled"
+
+prevention:
+  - "Keep the production schedule gate false during deployment retries"
+  - "Do not infer a partial deployment when the CLI emits no deployment identity"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T13:31:00Z"
+  success_rate: 1.0
+  tags: ["vercel", "network", "deployment", "transient"]

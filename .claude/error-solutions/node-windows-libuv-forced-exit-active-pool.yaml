@@ -1,0 +1,39 @@
+id: "node-windows-libuv-forced-exit-active-pool"
+created: "2026-08-25T08:49:00Z"
+updated: "2026-08-25T08:49:00Z"
+
+error:
+  type: "runtime"
+  category: "LibuvAssertion"
+  language: "nodejs"
+  pattern: "Assertion failed: !(handle->flags & UV_HANDLE_CLOSING), file src\\win\\async.c"
+  context: "Windows one-off Node inspection command using pg Pool and process.exit(0)"
+
+diagnosis:
+  root_cause: "The diagnostic forced Node to exit while the Postgres pool's Windows libuv async handle was already closing. The query and storage reads had succeeded; this was diagnostic teardown, not a pipeline failure."
+  factors:
+    - "process.exit(0) bypassed graceful resource shutdown"
+    - "The imported shared Postgres pool remained active after the final query"
+
+solution:
+  immediate:
+    - "Remove process.exit(0) from the one-off diagnostic"
+    - "Import getPostgresPool and await getPostgresPool().end() after the final read"
+  proper:
+    - "Let the Node event loop exit naturally after all owned resources close"
+    - "Use the repository's established query-pre-research teardown pattern"
+  code_change: null
+
+verification:
+  - "Repeat the same organization-profile read with await getPostgresPool().end()"
+  - "Confirm the expected JSON prints and the process exits with code 0 without a libuv assertion"
+
+prevention:
+  - "Never use process.exit() in inline database diagnostics unless every pool/client has already been closed"
+  - "Prefer maintained repository inspection scripts that implement cleanup"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T08:49:00Z"
+  success_rate: 1.0
+  tags: ["nodejs", "windows", "libuv", "postgres", "diagnostic"]

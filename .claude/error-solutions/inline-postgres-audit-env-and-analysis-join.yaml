@@ -1,0 +1,37 @@
+id: "inline-postgres-audit-env-and-analysis-join"
+created: "2026-08-25T11:22:00Z"
+updated: "2026-08-25T11:22:00Z"
+
+error:
+  type: "database"
+  category: "OperatorQuerySetup"
+  language: "javascript"
+  pattern: "Inline audit omitted loadEnv, then assumed research_organization_candidate.run_id"
+  context: "Read-only semantic source audit"
+
+diagnosis:
+  root_cause: "The one-off probe bypassed the existing query script's environment setup and guessed a direct run_id column instead of joining through research_video_analysis.analysis_id."
+  factors:
+    - "The first attempt failed before connecting because POSTGRES_URL was unset"
+    - "The second connected read was rejected with PostgreSQL 42703"
+
+solution:
+  immediate:
+    - "Call scripts/load-env.mjs loadEnv() before importing the Postgres helper"
+  proper:
+    - "Resolve analysis_id from research_video_analysis by run_id, then query organization candidates and sources by analysis_id"
+    - "Gracefully await getPostgresPool().end()"
+  code_change: null
+
+verification:
+  - "The corrected read returned all six SemiAnalysis source rows and exited cleanly"
+  - "No mutation statement was issued"
+
+prevention:
+  - "Reuse schema joins from query-pre-research.mts for operator probes"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T11:21:00Z"
+  success_rate: 1.0
+  tags: ["postgres", "operator-audit", "environment", "schema-join"]

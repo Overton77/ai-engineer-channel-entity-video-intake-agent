@@ -1,0 +1,40 @@
+id: "honeyhive-evaluation-domain-misclassification"
+created: "2026-08-25T14:32:00Z"
+updated: "2026-08-25T15:02:25Z"
+
+error:
+  type: "semantic"
+  category: "OrganizationTaxonomy"
+  language: "typescript"
+  pattern: "HoneyHive LLM evaluation tooling classified as horizontal_ai_application"
+  context: "Canonical audit of slim-57 HoneyHive evals packet"
+
+diagnosis:
+  root_cause: "Hydration preserved a schema-valid generic application enum even though the transcript and first-party HoneyHive sources explicitly identify evaluation, tracing, and observability as the product's durable role."
+  factors:
+    - "horizontal_ai_application is syntactically valid but reserved for broad end-user applications"
+    - "The generic fallback does not infer organization domain from transcript semantics"
+    - "Documentation subdomains were mislabeled as official_homepage when the path omitted the word docs"
+
+solution:
+  immediate:
+    - "Keep HoneyHive as the transcript-explicit implementation owner"
+  proper:
+    - "Assign evaluation_observability_llmops for HoneyHive eval/tracing evidence"
+    - "Recognize docs.* and developer.* first-party hosts as official documentation"
+  code_change: "Add a bounded HoneyHive/evals refinement, documentation-host role inference, and regression."
+
+verification:
+  - "Regression assigns evaluation_observability_llmops and official_documentation"
+  - "Fresh slim-60 run 16932259-f81d-4d78-a010-b92edcacc42c has twelve hash-matched objects and twelve applied operations"
+  - "Canonical semantic inspection shows HoneyHive at honeyhive.ai, evaluation_observability_llmops, and docs.honeyhive.ai sources as official_documentation"
+
+prevention:
+  - "Regression-test valid-but-wrong generic organization enums against defining product evidence"
+  - "Use host semantics as well as URL paths when assigning source roles"
+
+metadata:
+  occurrences: 2
+  last_resolved: "2026-08-25T15:02:25Z"
+  success_rate: 1.0
+  tags: ["pre-research", "taxonomy", "honeyhive", "evaluation", "observability"]

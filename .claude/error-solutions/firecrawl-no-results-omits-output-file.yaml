@@ -1,0 +1,36 @@
+id: "firecrawl-no-results-omits-output-file"
+created: "2026-08-25T10:54:00Z"
+updated: "2026-08-25T10:54:00Z"
+
+error:
+  type: "runtime"
+  category: "FileNotFound"
+  language: "powershell"
+  pattern: "Firecrawl search reports no results and does not create the requested output file"
+  context: "Optional search-feedback follow-up"
+
+diagnosis:
+  root_cause: "The CLI's no-results branch exits successfully without writing the -o JSON file, while the follow-up assumed every successful exit produced a file."
+  factors:
+    - "The console clearly reported 'No results found'"
+    - "Feedback requires a search id that is unavailable without a response file"
+
+solution:
+  immediate:
+    - "Treat the absent file as the expected no-results outcome and skip id-based feedback"
+  proper:
+    - "Guard optional Firecrawl result reads with Test-Path before Get-Content"
+  code_change: null
+
+verification:
+  - "Test-Path reports the file absent and the guarded branch prints the expected no-result marker"
+  - "The useful first search result file remains intact and received feedback"
+
+prevention:
+  - "Do not equate Firecrawl exit code zero with output-file creation on a no-results search"
+
+metadata:
+  occurrences: 1
+  last_resolved: "2026-08-25T10:54:00Z"
+  success_rate: 1.0
+  tags: ["powershell", "firecrawl", "no-results", "optional-output"]
